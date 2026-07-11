@@ -1,0 +1,11 @@
+name: Feature
+description: Propose a scoped product capability
+body:
+  - type: textarea
+    attributes: { label: Problem, description: Describe the manager need. }
+    validations: { required: true }
+  - type: textarea
+    attributes: { label: Acceptance criteria }
+    validations: { required: true }
+  - type: textarea
+    attributes: { label: Approval and audit impact }

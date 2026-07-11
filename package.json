@@ -1,0 +1,22 @@
+{
+  "name": "supply-ai",
+  "private": true,
+  "packageManager": "pnpm@11.9.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "format:check": "prettier --check .",
+    "format": "prettier --write .",
+    "db:generate": "pnpm --filter @supply/database generate",
+    "db:migrate": "pnpm --filter @supply/database migrate",
+    "db:seed": "pnpm --filter @supply/database seed"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "turbo": "^2.5.6",
+    "typescript": "^5.9.2"
+  }
+}
