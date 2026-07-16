@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "db:generate": "pnpm --filter @supply/database generate",
     "db:migrate": "pnpm --filter @supply/database migrate",
-    "db:seed": "pnpm --filter @supply/database seed"
+    "db:seed": "pnpm --filter @supply/database seed",
+    "auth:bootstrap-admin": "pnpm --filter @supply/database exec tsx ../../scripts/bootstrap-super-admin.ts"
   },
   "devDependencies": {
     "prettier": "^3.6.2",

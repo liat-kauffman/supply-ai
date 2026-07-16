@@ -1,10 +1,10 @@
 "use client";
 
 import { CheckCircle2, X } from "lucide-react";
-import { useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useDashboardStore } from "@/stores/dashboard-store";
+import { metrics, navigation, stock, supplier, tasks } from "./dashboard-data";
 import { AttentionPanel } from "./attention-panel";
 import { DashboardHeader } from "./dashboard-header";
 import { InsightCard } from "./insight-card";
@@ -13,29 +13,7 @@ import { MobileNavigation } from "./mobile-navigation";
 import { Sidebar } from "./sidebar";
 import { StockHealthCard } from "./stock-health-card";
 import { SupplierCutoffCard } from "./supplier-cutoff-card";
-import type {
-  AttentionTask,
-  Metric,
-  NavigationItem,
-  StockItem,
-  SupplierCutoffData,
-} from "./types";
-
-interface DashboardShellProps {
-  navigation: NavigationItem[];
-  metrics: Metric[];
-  tasks: AttentionTask[];
-  stock: StockItem[];
-  supplier: SupplierCutoffData;
-}
-
-export function DashboardShell({
-  navigation,
-  metrics,
-  tasks,
-  stock,
-  supplier,
-}: DashboardShellProps) {
+export function DashboardShell() {
   const activeHref = useDashboardStore((state) => state.activeHref);
   const acknowledgedTasks = useDashboardStore(
     (state) => state.acknowledgedTasks,
@@ -52,9 +30,8 @@ export function DashboardShell({
   const showMessage = useDashboardStore((state) => state.showMessage);
   const clearMessage = useDashboardStore((state) => state.clearMessage);
 
-  const visibleTasks = useMemo(
-    () => tasks.filter((task) => !acknowledgedTasks.includes(task.title)),
-    [acknowledgedTasks, tasks],
+  const visibleTasks = tasks.filter(
+    (task) => !acknowledgedTasks.includes(task.title),
   );
 
   return (

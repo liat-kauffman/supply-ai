@@ -1,5 +1,14 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "DATABASE_URL",
+    "BETTER_AUTH_SECRET",
+    "BETTER_AUTH_URL",
+    "SUPER_ADMIN_USER_IDS",
+    "RESEND_API_KEY",
+    "AUTH_EMAIL_FROM",
+    "AUTH_EMAIL_WEBHOOK_URL"
+  ],
   "tasks": {
     "dev": { "cache": false, "persistent": true },
     "build": {

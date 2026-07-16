@@ -18,6 +18,25 @@ pnpm dev
 
 Open `http://localhost:3000`. Web liveness is at `/api/health/live`, readiness at `/api/health/ready`, and worker health at `http://localhost:3001/health/live`.
 
+## Authentication and companies
+
+Authentication uses Better Auth with its Prisma, Organization, and Admin plugins.
+
+- A company owner registers at `/register`, verifies their email, and creates one company workspace.
+- Owners and managers invite workers from `/company/workers` as `manager` or `employee`.
+- Company roles are stored on Better Auth memberships, never globally on the user.
+- Platform `super_admin` is separate from all company memberships.
+
+Verification and invitation emails are sent through Resend when `RESEND_API_KEY` and `AUTH_EMAIL_FROM` are configured. Without Resend, the app can use `AUTH_EMAIL_WEBHOOK_URL`; development otherwise writes links to the server log. Production refuses to silently discard authentication email.
+
+After registering and verifying your own account, bootstrap the first platform administrator by email:
+
+```bash
+pnpm auth:bootstrap-admin you@example.com
+```
+
+This command only promotes an existing Better Auth identity. The `/admin` route is inaccessible to ordinary company owners.
+
 ## Architecture
 
 This repository is a modular monolith with two runtimes:
