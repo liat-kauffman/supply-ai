@@ -17,7 +17,7 @@ export function AuthShell({
           <span>
             <Leaf />
           </span>
-          supplying.
+          supplai.
         </div>
         <div>
           <p>Human-approved inventory operations</p>

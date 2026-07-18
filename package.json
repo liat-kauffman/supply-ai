@@ -1,5 +1,5 @@
 {
-  "name": "supply-ai",
+  "name": "supplai",
   "private": true,
   "packageManager": "pnpm@11.9.0",
   "scripts": {

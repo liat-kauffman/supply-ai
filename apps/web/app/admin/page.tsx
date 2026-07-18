@@ -25,7 +25,7 @@ export default async function PlatformAdminPage() {
       </Link>
       <div className="admin-heading">
         <p>PLATFORM ADMINISTRATION</p>
-        <h1>Supplying control plane</h1>
+        <h1>Supplai control plane</h1>
         <span>Platform access is separate from every company membership.</span>
       </div>
       <div className="admin-grid">

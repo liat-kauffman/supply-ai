@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Supplying — Inventory Operations",
+  title: "Supplai — Inventory Operations",
   description: "Human-approved inventory operations for modern cafés.",
   manifest: "/manifest.webmanifest",
 };
