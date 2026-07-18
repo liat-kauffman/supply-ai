@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -19,9 +20,10 @@ export function SupplierCutoffCard({
   supplier,
   nextSupplier,
 }: SupplierCutoffCardProps) {
-  const progress = Math.round(
-    (supplier.basketValue / supplier.minimumValue) * 100,
-  );
+  const progress =
+    supplier.minimumValue > 0
+      ? Math.round((supplier.basketValue / supplier.minimumValue) * 100)
+      : 0;
   return (
     <Card className="panel cutoff" id="orders">
       <CardHeader>
@@ -54,8 +56,10 @@ export function SupplierCutoffCard({
           <Progress value={progress} />
           <small>{supplier.remainingMessage}</small>
         </div>
-        <Button className="secondary" variant="secondary">
-          Review basket <ArrowRight />
+        <Button asChild className="secondary" variant="secondary">
+          <Link href="/orders">
+            Review basket <ArrowRight />
+          </Link>
         </Button>
         <div className="next-cutoff">
           <div className="supplier-logo bakery">{nextSupplier.logo}</div>

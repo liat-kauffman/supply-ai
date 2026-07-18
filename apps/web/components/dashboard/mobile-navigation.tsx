@@ -1,40 +1,35 @@
-import { Plus } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
 
 export function MobileNavigation({
   items,
   activeHref,
   onNavigate,
 }: {
-  items: Array<{ label: string; href: string }>;
+  items: Array<{ label: string; href: string; icon: LucideIcon }>;
   activeHref: string;
   onNavigate: (href: string) => void;
 }) {
+  const mobileItems = items.filter((item) =>
+    ["/", "/inventory", "/orders", "/receipts"].includes(item.href),
+  );
+
   return (
     <nav className="mobile-nav">
-      {items.slice(0, 2).map((item) => (
-        <a
-          className={item.href === activeHref ? "active" : undefined}
-          href={item.href}
-          key={item.href}
-          onClick={() => onNavigate(item.href)}
-        >
-          {item.label}
-        </a>
-      ))}
-      <Button size="icon" aria-label="Add stock update">
-        <Plus />
-      </Button>
-      {items.slice(2, 4).map((item) => (
-        <a
-          className={item.href === activeHref ? "active" : undefined}
-          href={item.href}
-          key={item.href}
-          onClick={() => onNavigate(item.href)}
-        >
-          {item.label}
-        </a>
-      ))}
+      {mobileItems.map((item) => {
+        const Icon = item.icon;
+        return (
+          <Link
+            className={item.href === activeHref ? "active" : undefined}
+            href={item.href}
+            key={item.href}
+            onClick={() => onNavigate(item.href)}
+          >
+            <Icon />
+            <span>{item.label}</span>
+          </Link>
+        );
+      })}
     </nav>
   );
 }

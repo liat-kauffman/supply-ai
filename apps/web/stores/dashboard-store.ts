@@ -13,7 +13,7 @@ interface DashboardState {
 }
 
 export const useDashboardStore = create<DashboardState>((set) => ({
-  activeHref: "#",
+  activeHref: "/",
   acknowledgedTasks: [],
   notificationCount: 1,
   message: null,

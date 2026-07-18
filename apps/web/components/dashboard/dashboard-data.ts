@@ -20,10 +20,10 @@ import type {
 } from "./types";
 
 export const navigation: NavigationItem[] = [
-  { label: "Today", href: "#", icon: Home },
-  { label: "Inventory", href: "#inventory", icon: Box },
-  { label: "Orders", href: "#orders", icon: ShoppingBag, badge: 2 },
-  { label: "Receipts", href: "#receipts", icon: ReceiptText },
+  { label: "Today", href: "/", icon: Home },
+  { label: "Inventory", href: "/inventory", icon: Box },
+  { label: "Orders", href: "/orders", icon: ShoppingBag },
+  { label: "Receipts", href: "/receipts", icon: ReceiptText },
   { label: "Activity", href: "#activity", icon: Clock3 },
   { label: "Workers", href: "/company/workers", icon: Users },
 ];

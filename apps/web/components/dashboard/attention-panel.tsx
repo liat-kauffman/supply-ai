@@ -23,28 +23,37 @@ export function AttentionPanel({
         />
       </CardHeader>
       <CardContent className="task-list">
-        {tasks.map(({ title, detail, tag, icon: TaskIcon, tone }) => (
-          <article className="task" key={title}>
-            <div className={`task-icon ${tone}`}>
-              <TaskIcon />
-            </div>
+        {tasks.length ? (
+          tasks.map(({ title, detail, tag, icon: TaskIcon, tone }) => (
+            <article className="task" key={title}>
+              <div className={`task-icon ${tone}`}>
+                <TaskIcon />
+              </div>
+              <div className="task-copy">
+                <strong>{title}</strong>
+                <span>{detail}</span>
+              </div>
+              <Badge className={`pill ${tone}`} variant="secondary">
+                {tag}
+              </Badge>
+              <Button
+                size="icon"
+                variant="ghost"
+                aria-label={`Mark ${title} reviewed`}
+                onClick={() => onTaskOpen(title)}
+              >
+                <ChevronRight />
+              </Button>
+            </article>
+          ))
+        ) : (
+          <article className="task">
             <div className="task-copy">
-              <strong>{title}</strong>
-              <span>{detail}</span>
+              <strong>All clear for now</strong>
+              <span>No live follow-ups are waiting for review.</span>
             </div>
-            <Badge className={`pill ${tone}`} variant="secondary">
-              {tag}
-            </Badge>
-            <Button
-              size="icon"
-              variant="ghost"
-              aria-label={`Mark ${title} reviewed`}
-              onClick={() => onTaskOpen(title)}
-            >
-              <ChevronRight />
-            </Button>
           </article>
-        ))}
+        )}
       </CardContent>
     </Card>
   );

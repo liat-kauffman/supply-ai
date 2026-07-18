@@ -1,10 +1,19 @@
 "use client";
 
+import {
+  BarChart3,
+  Camera,
+  CircleDollarSign,
+  PackageOpen,
+  ReceiptText,
+  TriangleAlert,
+} from "lucide-react";
+import { useState } from "react";
 import { CheckCircle2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useDashboardStore } from "@/stores/dashboard-store";
-import { metrics, navigation, stock, supplier, tasks } from "./dashboard-data";
+import { navigation } from "./dashboard-data";
 import { AttentionPanel } from "./attention-panel";
 import { DashboardHeader } from "./dashboard-header";
 import { InsightCard } from "./insight-card";
@@ -13,26 +22,61 @@ import { MobileNavigation } from "./mobile-navigation";
 import { Sidebar } from "./sidebar";
 import { StockHealthCard } from "./stock-health-card";
 import { SupplierCutoffCard } from "./supplier-cutoff-card";
-export function DashboardShell() {
+import type { DashboardData } from "@/lib/dashboard";
+export function DashboardShell({
+  companyName,
+  userName,
+  dashboard,
+}: {
+  companyName: string;
+  userName: string;
+  dashboard: DashboardData;
+}) {
   const activeHref = useDashboardStore((state) => state.activeHref);
   const acknowledgedTasks = useDashboardStore(
     (state) => state.acknowledgedTasks,
   );
-  const notificationCount = useDashboardStore(
-    (state) => state.notificationCount,
-  );
   const message = useDashboardStore((state) => state.message);
   const navigate = useDashboardStore((state) => state.navigate);
   const acknowledgeTask = useDashboardStore((state) => state.acknowledgeTask);
-  const clearNotifications = useDashboardStore(
-    (state) => state.clearNotifications,
-  );
   const showMessage = useDashboardStore((state) => state.showMessage);
   const clearMessage = useDashboardStore((state) => state.clearMessage);
+  const [notificationCount, setNotificationCount] = useState(
+    dashboard.tasks.length,
+  );
+
+  const metrics = dashboard.metrics.map((metric) => ({
+    ...metric,
+    icon:
+      metric.icon === "receipt"
+        ? ReceiptText
+        : metric.icon === "alert"
+          ? TriangleAlert
+          : metric.icon === "money"
+            ? CircleDollarSign
+            : BarChart3,
+  }));
+
+  const tasks = dashboard.tasks.map((task) => ({
+    ...task,
+    icon:
+      task.icon === "receipt"
+        ? ReceiptText
+        : task.icon === "camera"
+          ? Camera
+          : PackageOpen,
+  }));
 
   const visibleTasks = tasks.filter(
     (task) => !acknowledgedTasks.includes(task.title),
   );
+  const initials = userName
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+  const firstName = userName.split(/\s+/)[0] || userName;
 
   return (
     <div className="app-shell">
@@ -41,19 +85,19 @@ export function DashboardShell() {
         activeHref={activeHref}
         onNavigate={navigate}
         user={{
-          initials: "MK",
-          name: "Maya Klein",
-          subtitle: "Manager · Supply Café",
+          initials,
+          name: userName,
+          subtitle: companyName,
         }}
       />
       <main>
         <DashboardHeader
-          eyebrow="SATURDAY, JULY 11"
-          title="Good morning, Maya."
+          eyebrow={dashboard.headerEyebrow}
+          title={`Good morning, ${firstName}.`}
           subtitle="Here’s what needs your attention today."
           actionLabel="Add stock update"
           notificationCount={notificationCount}
-          onNotificationsClick={clearNotifications}
+          onNotificationsClick={() => setNotificationCount(0)}
           onAction={() =>
             showMessage("Stock update workflow is ready to open.")
           }
@@ -76,20 +120,15 @@ export function DashboardShell() {
         <div className="dashboard-grid">
           <AttentionPanel tasks={visibleTasks} onTaskOpen={acknowledgeTask} />
           <SupplierCutoffCard
-            supplier={supplier}
-            nextSupplier={{
-              name: "Central Bakery",
-              logo: "B",
-              schedule: "Monday · 10:00 cutoff",
-              relativeTime: "In 2 days",
-            }}
+            supplier={dashboard.supplier}
+            nextSupplier={dashboard.nextSupplier}
           />
-          <StockHealthCard items={stock} />
+          <StockHealthCard items={dashboard.stock} />
           <InsightCard
-            title="You may run short on oat milk before Monday."
-            description="Based on the last 14 days, weekend usage is 22% higher. Adding 6 cartons to today’s Dairy Direct order should cover expected demand plus safety stock."
-            confidence={91}
-            dataDays={14}
+            title={dashboard.insight.title}
+            description={dashboard.insight.description}
+            confidence={dashboard.insight.confidence}
+            dataDays={dashboard.insight.dataDays}
           />
         </div>
         <footer>
@@ -98,7 +137,11 @@ export function DashboardShell() {
         </footer>
       </main>
       <MobileNavigation
-        items={navigation.map(({ label, href }) => ({ label, href }))}
+        items={navigation.map(({ label, href, icon }) => ({
+          label,
+          href,
+          icon,
+        }))}
         activeHref={activeHref}
         onNavigate={navigate}
       />

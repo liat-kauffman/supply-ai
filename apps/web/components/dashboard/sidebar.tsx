@@ -1,4 +1,5 @@
 import { MoreHorizontal, Settings } from "lucide-react";
+import Link from "next/link";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,12 +15,12 @@ interface SidebarProps {
 export function Sidebar({ items, activeHref, onNavigate, user }: SidebarProps) {
   return (
     <aside className="sidebar">
-      <a className="brand" href="#">
+      <Link className="brand" href="/">
         <span className="brand-mark">S</span>
         <span>
-          supplying<span className="brand-dot">.</span>
+          supplai<span className="brand-dot">.</span>
         </span>
-      </a>
+      </Link>
       <nav aria-label="Main navigation">
         {items.map(({ label, href, icon: ItemIcon, badge }) => (
           <a

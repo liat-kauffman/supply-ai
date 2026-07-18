@@ -7,7 +7,7 @@ interface InsightCardProps {
   title: string;
   description: string;
   confidence: number;
-  dataDays: number;
+  dataDays: number | null;
 }
 
 export function InsightCard({
@@ -23,7 +23,7 @@ export function InsightCard({
           <Sparkles />
         </div>
         <div>
-          <span className="ai-label">SUPPLYING INSIGHT</span>
+          <span className="ai-label">SUPPLAI INSIGHT</span>
           <h3>{title}</h3>
           <p>{description}</p>
           <div className="evidence">
@@ -31,7 +31,15 @@ export function InsightCard({
               Confidence <strong>{confidence}%</strong>
             </Badge>
             <Badge variant="outline">
-              Uses <strong>{dataDays} days</strong> of data
+              {dataDays === null ? (
+                <>
+                  Uses <strong>live records</strong>
+                </>
+              ) : (
+                <>
+                  Uses <strong>{dataDays} days</strong> of data
+                </>
+              )}
             </Badge>
           </div>
           <Button variant="link">
