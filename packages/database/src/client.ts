@@ -2,6 +2,17 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
+function hasReceiptDelegates(client: PrismaClient) {
+  return "receipt" in client && "receiptLine" in client;
+}
+
+const cachedPrisma = globalForPrisma.prisma;
+
+if (cachedPrisma && !hasReceiptDelegates(cachedPrisma)) {
+  void cachedPrisma.$disconnect().catch(() => undefined);
+  globalForPrisma.prisma = undefined;
+}
+
 export const prisma = globalForPrisma.prisma ?? new PrismaClient();
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

@@ -15,7 +15,6 @@ async function main() {
         create: {
           timezone: "Asia/Jerusalem",
           currency: "ILS",
-          locations: { create: { id: "main-cafe", name: "Main Café" } },
         },
       },
     },

@@ -1,0 +1,2 @@
+ALTER TABLE "Receipt"
+ADD COLUMN "vatAmount" DECIMAL(12,2);
