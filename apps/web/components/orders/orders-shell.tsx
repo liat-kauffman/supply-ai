@@ -4,15 +4,19 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clipboard,
+  Eye,
   LoaderCircle,
   PackageOpen,
+  Plus,
   Send,
+  ShieldCheck,
   ShoppingBag,
+  Trash2,
   UserCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { navigation } from "@/components/dashboard/dashboard-data";
 import { MobileNavigation } from "@/components/dashboard/mobile-navigation";
@@ -21,10 +25,46 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { displayMoney, displayNumber, displayText } from "@/lib/display";
 import type {
+  OrderApprovalCatalogItem,
+  OrderApprovalLine,
   OrderApprovalRequest,
   OrdersData,
   SupplierBasket,
 } from "@/lib/orders";
+
+interface EditableReviewItem {
+  productId: string;
+  productName: string;
+  supplierSku: string | null;
+  unit: string;
+  unitsPerPackage: number;
+  latestPackagePrice: number | null;
+  packageCount: number;
+  requestedQuantity: number;
+}
+
+function editableLine(line: OrderApprovalLine): EditableReviewItem {
+  return {
+    productId: line.productId,
+    productName: line.productName,
+    supplierSku: line.supplierSku,
+    unit: line.unit,
+    unitsPerPackage: line.unitsPerPackage,
+    latestPackagePrice: line.latestPackagePrice,
+    packageCount: line.packageCount,
+    requestedQuantity: line.requestedQuantity,
+  };
+}
+
+function editableCatalogItem(
+  item: OrderApprovalCatalogItem,
+): EditableReviewItem {
+  return {
+    ...item,
+    packageCount: 1,
+    requestedQuantity: item.unitsPerPackage,
+  };
+}
 
 function quantity(value: number) {
   return displayNumber(value, { maximumFractionDigits: 1 });
@@ -70,8 +110,13 @@ export function OrdersShell({
   userName: string;
 }) {
   const router = useRouter();
-  const canReview = currentRole === "owner" || currentRole === "manager";
-  const isEmployee = currentRole === "employee";
+  const actualCanReview = currentRole === "owner" || currentRole === "manager";
+  const [viewMode, setViewMode] = useState<"manager" | "employee">(
+    actualCanReview ? "manager" : "employee",
+  );
+  const canReview = actualCanReview && viewMode === "manager";
+  const isEmployeeView = !actualCanReview || viewMode === "employee";
+  const isEmployeePreview = actualCanReview && viewMode === "employee";
   const pendingRequests = approvalRequests.filter(
     (request) => request.status === "PENDING",
   );
@@ -88,13 +133,19 @@ export function OrdersShell({
       ),
     ),
   );
-  const [reviewCounts, setReviewCounts] = useState<Record<string, number>>(() =>
+  const [reviewItems, setReviewItems] = useState<
+    Record<string, EditableReviewItem[]>
+  >(() =>
     Object.fromEntries(
-      pendingRequests.flatMap((request) =>
-        request.lines.map((line) => [line.id, line.packageCount]),
-      ),
+      pendingRequests.map((request) => [
+        request.id,
+        request.lines.map(editableLine),
+      ]),
     ),
   );
+  const [catalogSelections, setCatalogSelections] = useState<
+    Record<string, string>
+  >({});
   const [notes, setNotes] = useState<Record<string, string>>({});
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -107,11 +158,59 @@ export function OrdersShell({
     .slice(0, 2)
     .toUpperCase();
 
+  useEffect(() => {
+    setReviewItems((current) => {
+      const next = { ...current };
+      for (const request of approvalRequests) {
+        if (request.status === "PENDING" && !next[request.id]) {
+          next[request.id] = request.lines.map(editableLine);
+        }
+      }
+      return next;
+    });
+  }, [approvalRequests]);
+
   function countFor(basket: SupplierBasket, productId: string) {
     return basketCounts[`${basket.supplierId}:${productId}`] ?? 0;
   }
 
+  function updateReviewItem(
+    requestId: string,
+    productId: string,
+    update: Partial<EditableReviewItem>,
+  ) {
+    setReviewItems((current) => ({
+      ...current,
+      [requestId]: (current[requestId] ?? []).map((item) =>
+        item.productId === productId ? { ...item, ...update } : item,
+      ),
+    }));
+  }
+
+  function removeReviewItem(requestId: string, productId: string) {
+    setReviewItems((current) => ({
+      ...current,
+      [requestId]: (current[requestId] ?? []).filter(
+        (item) => item.productId !== productId,
+      ),
+    }));
+  }
+
+  function addReviewItem(request: OrderApprovalRequest) {
+    const productId = catalogSelections[request.id];
+    const item = request.availableItems.find(
+      (candidate) => candidate.productId === productId,
+    );
+    if (!item) return;
+    setReviewItems((current) => ({
+      ...current,
+      [request.id]: [...(current[request.id] ?? []), editableCatalogItem(item)],
+    }));
+    setCatalogSelections((current) => ({ ...current, [request.id]: "" }));
+  }
+
   async function requestApproval(basket: SupplierBasket) {
+    if (isEmployeePreview) return;
     setBusyKey(`request:${basket.supplierId}`);
     setError(null);
     setMessage(null);
@@ -147,9 +246,10 @@ export function OrdersShell({
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        items: request.lines.map((line) => ({
-          lineId: line.id,
-          packageCount: reviewCounts[line.id] ?? line.packageCount,
+        items: (reviewItems[request.id] ?? []).map((item) => ({
+          productId: item.productId,
+          packageCount: item.packageCount,
+          requestedQuantity: item.requestedQuantity,
         })),
       }),
     });
@@ -212,6 +312,40 @@ export function OrdersShell({
           </Button>
         </header>
 
+        {actualCanReview ? (
+          <div className="orders-view-switcher">
+            <div>
+              <strong>View order page as</strong>
+              <small>
+                Preview the employee experience without changing roles.
+              </small>
+            </div>
+            <div role="group" aria-label="Order page role preview">
+              <button
+                className={viewMode === "manager" ? "active" : undefined}
+                onClick={() => setViewMode("manager")}
+                type="button"
+              >
+                <ShieldCheck /> Manager
+              </button>
+              <button
+                className={viewMode === "employee" ? "active" : undefined}
+                onClick={() => setViewMode("employee")}
+                type="button"
+              >
+                <Eye /> Employee preview
+              </button>
+            </div>
+          </div>
+        ) : null}
+
+        {isEmployeePreview ? (
+          <p className="employee-preview-banner">
+            <Eye /> Employee preview is on. Approval requests are disabled in
+            preview mode.
+          </p>
+        ) : null}
+
         {message ? <p className="orders-feedback success">{message}</p> : null}
         {error ? (
           <p className="orders-feedback error" role="alert">
@@ -243,7 +377,9 @@ export function OrdersShell({
               <AlertTriangle />
             </span>
             <div>
-              <strong>{displayNumber(pendingRequests.length)}</strong>
+              <strong>
+                {displayNumber(isEmployeePreview ? 0 : pendingRequests.length)}
+              </strong>
               <small>waiting for approval</small>
             </div>
           </article>
@@ -272,98 +408,173 @@ export function OrdersShell({
               </div>
               <Badge variant="outline">{pendingRequests.length} pending</Badge>
             </div>
-            {pendingRequests.map((request) => (
-              <article className="approval-card" key={request.id}>
-                <header>
-                  <div className="approval-person">
-                    <span>
-                      <UserCheck />
-                    </span>
-                    <div>
-                      <h3>{request.supplierName}</h3>
-                      <p>
-                        Requested by {request.requesterName} ·{" "}
-                        {requestDate(request.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-                  <Badge>Needs approval</Badge>
-                </header>
-                {request.note ? (
-                  <p className="approval-note">“{request.note}”</p>
-                ) : null}
-                <div className="approval-lines">
-                  {request.lines.map((line) => {
-                    const packages = reviewCounts[line.id] ?? line.packageCount;
-                    return (
-                      <div className="approval-line" key={line.id}>
-                        <div>
-                          <strong>{line.productName}</strong>
-                          <small>
-                            {line.supplierSku
-                              ? `SKU ${line.supplierSku}`
-                              : "No supplier SKU"}{" "}
-                            · {quantity(line.unitsPerPackage)} {line.unit} per
-                            package
-                          </small>
-                        </div>
-                        <label>
-                          <span>Packages</span>
-                          <input
-                            min="0"
-                            onChange={(event) =>
-                              setReviewCounts((current) => ({
-                                ...current,
-                                [line.id]: Math.max(
-                                  0,
-                                  Number(event.target.value) || 0,
-                                ),
-                              }))
-                            }
-                            step="1"
-                            type="number"
-                            value={packages}
-                          />
-                        </label>
-                        <div className="approval-line-total">
-                          <strong>
-                            {quantity(packages * line.unitsPerPackage)}{" "}
-                            {line.unit}
-                          </strong>
-                          <small>
-                            {line.latestPackagePrice === null
-                              ? "Price unavailable"
-                              : displayMoney(
-                                  packages * line.latestPackagePrice,
-                                  request.currency,
-                                )}
-                          </small>
-                        </div>
+            {pendingRequests.map((request) => {
+              const items = reviewItems[request.id] ?? [];
+              const availableItems = request.availableItems.filter(
+                (item) =>
+                  !items.some(
+                    (currentItem) => currentItem.productId === item.productId,
+                  ),
+              );
+              return (
+                <article className="approval-card" key={request.id}>
+                  <header>
+                    <div className="approval-person">
+                      <span>
+                        <UserCheck />
+                      </span>
+                      <div>
+                        <h3>{request.supplierName}</h3>
+                        <p>
+                          Requested by {request.requesterName} ·{" "}
+                          {requestDate(request.createdAt)}
+                        </p>
                       </div>
-                    );
-                  })}
-                </div>
-                <footer>
-                  <small>You can adjust package counts before approval.</small>
-                  <Button
-                    disabled={busyKey === `approve:${request.id}`}
-                    onClick={() => approveRequest(request)}
-                    type="button"
-                  >
-                    {busyKey === `approve:${request.id}` ? (
-                      <LoaderCircle className="spin" />
+                    </div>
+                    <Badge>Needs approval</Badge>
+                  </header>
+                  {request.note ? (
+                    <p className="approval-note">“{request.note}”</p>
+                  ) : null}
+                  <div className="approval-add-item">
+                    <label>
+                      <span>Add another supplier item</span>
+                      <select
+                        onChange={(event) =>
+                          setCatalogSelections((current) => ({
+                            ...current,
+                            [request.id]: event.target.value,
+                          }))
+                        }
+                        value={catalogSelections[request.id] ?? ""}
+                      >
+                        <option value="">Choose an item…</option>
+                        {availableItems.map((item) => (
+                          <option key={item.productId} value={item.productId}>
+                            {item.productName}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <Button
+                      disabled={!catalogSelections[request.id]}
+                      onClick={() => addReviewItem(request)}
+                      type="button"
+                      variant="outline"
+                    >
+                      <Plus /> Add item
+                    </Button>
+                  </div>
+                  <div className="approval-lines">
+                    {items.length ? (
+                      items.map((line) => (
+                        <div className="approval-line" key={line.productId}>
+                          <div>
+                            <strong>{line.productName}</strong>
+                            <small>
+                              {line.supplierSku
+                                ? `SKU ${line.supplierSku}`
+                                : "No supplier SKU"}{" "}
+                              · {quantity(line.unitsPerPackage)} {line.unit} per
+                              package
+                            </small>
+                          </div>
+                          <label>
+                            <span>Packages</span>
+                            <input
+                              min="1"
+                              onChange={(event) => {
+                                const packageCount = Math.max(
+                                  1,
+                                  Math.round(Number(event.target.value) || 1),
+                                );
+                                updateReviewItem(request.id, line.productId, {
+                                  packageCount,
+                                  requestedQuantity:
+                                    packageCount * line.unitsPerPackage,
+                                });
+                              }}
+                              step="1"
+                              type="number"
+                              value={line.packageCount}
+                            />
+                          </label>
+                          <label>
+                            <span>Amount ({line.unit})</span>
+                            <input
+                              min="0.001"
+                              onChange={(event) =>
+                                updateReviewItem(request.id, line.productId, {
+                                  requestedQuantity: Math.max(
+                                    0.001,
+                                    Number(event.target.value) || 0.001,
+                                  ),
+                                })
+                              }
+                              step="0.001"
+                              type="number"
+                              value={line.requestedQuantity}
+                            />
+                          </label>
+                          <div className="approval-line-total">
+                            <strong>
+                              {quantity(line.requestedQuantity)} {line.unit}
+                            </strong>
+                            <small>
+                              {line.latestPackagePrice === null
+                                ? "Price unavailable"
+                                : displayMoney(
+                                    line.packageCount * line.latestPackagePrice,
+                                    request.currency,
+                                  )}
+                            </small>
+                          </div>
+                          <Button
+                            aria-label={`Remove ${line.productName}`}
+                            onClick={() =>
+                              removeReviewItem(request.id, line.productId)
+                            }
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      ))
                     ) : (
-                      <CheckCircle2 />
-                    )}{" "}
-                    Approve basket
-                  </Button>
-                </footer>
-              </article>
-            ))}
+                      <p className="approval-empty-lines">
+                        This basket is empty. Add at least one supplier item.
+                      </p>
+                    )}
+                  </div>
+                  <footer>
+                    <small>
+                      Add, remove, or update packages and amounts before
+                      approval.
+                    </small>
+                    <Button
+                      disabled={
+                        !items.length || busyKey === `approve:${request.id}`
+                      }
+                      onClick={() => approveRequest(request)}
+                      type="button"
+                    >
+                      {busyKey === `approve:${request.id}` ? (
+                        <LoaderCircle className="spin" />
+                      ) : (
+                        <CheckCircle2 />
+                      )}{" "}
+                      Approve basket
+                    </Button>
+                  </footer>
+                </article>
+              );
+            })}
           </section>
         ) : null}
 
-        {isEmployee && pendingRequests.length ? (
+        {isEmployeeView && !isEmployeePreview && pendingRequests.length ? (
           <section className="employee-request-status">
             <div className="orders-section-heading">
               <div>
@@ -389,7 +600,7 @@ export function OrdersShell({
           </section>
         ) : null}
 
-        {approvedRequests.length ? (
+        {!isEmployeePreview && approvedRequests.length ? (
           <section
             className="approved-orders"
             aria-labelledby="approved-heading"
@@ -555,7 +766,7 @@ export function OrdersShell({
                       </tbody>
                     </table>
                   </div>
-                  {isEmployee ? (
+                  {isEmployeeView ? (
                     <footer className="basket-request-footer">
                       <label>
                         <span>
@@ -575,6 +786,7 @@ export function OrdersShell({
                       </label>
                       <Button
                         disabled={
+                          isEmployeePreview ||
                           hasPending ||
                           busyKey === `request:${basket.supplierId}`
                         }
@@ -586,9 +798,11 @@ export function OrdersShell({
                         ) : (
                           <Send />
                         )}{" "}
-                        {hasPending
-                          ? "Waiting for manager"
-                          : "Ask manager for approval"}
+                        {isEmployeePreview
+                          ? "Preview: ask manager for approval"
+                          : hasPending
+                            ? "Waiting for manager"
+                            : "Ask manager for approval"}
                       </Button>
                     </footer>
                   ) : null}

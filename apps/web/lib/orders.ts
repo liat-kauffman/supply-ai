@@ -58,6 +58,15 @@ export interface OrderApprovalLine {
   estimatedCost: number | null;
 }
 
+export interface OrderApprovalCatalogItem {
+  productId: string;
+  productName: string;
+  supplierSku: string | null;
+  unit: string;
+  unitsPerPackage: number;
+  latestPackagePrice: number | null;
+}
+
 export interface OrderApprovalRequest {
   id: string;
   status: "PENDING" | "APPROVED" | "REJECTED";
@@ -70,6 +79,7 @@ export interface OrderApprovalRequest {
   createdAt: string;
   reviewedAt: string | null;
   lines: OrderApprovalLine[];
+  availableItems: OrderApprovalCatalogItem[];
 }
 
 function currentQuantity(movements: Array<{ quantityDelta: unknown }>) {
@@ -351,7 +361,25 @@ export async function getOrderApprovalRequests(
     orderBy: [{ status: "asc" }, { createdAt: "desc" }],
     take: 40,
     include: {
-      supplier: { select: { name: true } },
+      supplier: {
+        select: {
+          name: true,
+          products: {
+            where: { product: { active: true } },
+            include: {
+              product: { select: { name: true, baseUnit: true } },
+              receiptLines: {
+                orderBy: [
+                  { receipt: { receiptDate: "desc" } },
+                  { createdAt: "desc" },
+                ],
+                take: 1,
+                select: { packagePrice: true },
+              },
+            },
+          },
+        },
+      },
       requestedBy: { select: { name: true } },
       reviewedBy: { select: { name: true } },
       lines: { orderBy: { productName: "asc" } },
@@ -381,5 +409,17 @@ export async function getOrderApprovalRequests(
       latestPackagePrice: finiteNumberOrNull(line.latestPackagePrice),
       estimatedCost: finiteNumberOrNull(line.estimatedCost),
     })),
+    availableItems: request.supplier.products
+      .map((link) => ({
+        productId: link.productId,
+        productName: displayText(link.product.name, "Item"),
+        supplierSku: displayText(link.supplierSku, "") || null,
+        unit: displayText(link.product.baseUnit, "units"),
+        unitsPerPackage: Math.max(finiteNumber(link.unitsPerPackage, 1), 1),
+        latestPackagePrice: finiteNumberOrNull(
+          link.receiptLines[0]?.packagePrice ?? link.latestPackagePrice,
+        ),
+      }))
+      .sort((left, right) => left.productName.localeCompare(right.productName)),
   }));
 }

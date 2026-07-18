@@ -9,8 +9,9 @@ const approvalSchema = z.object({
   items: z
     .array(
       z.object({
-        lineId: z.string().min(1),
-        packageCount: z.number().int().min(0).max(10_000),
+        productId: z.string().min(1),
+        packageCount: z.number().int().min(1).max(10_000),
+        requestedQuantity: z.number().positive().max(1_000_000),
       }),
     )
     .min(1)
@@ -35,23 +36,43 @@ export async function PATCH(
         { status: 400 },
       );
     if (
-      new Set(parsed.data.items.map((item) => item.lineId)).size !==
+      new Set(parsed.data.items.map((item) => item.productId)).size !==
       parsed.data.items.length
     )
       return NextResponse.json(
         { error: "Each basket line can appear only once" },
         { status: 400 },
       );
-    if (!parsed.data.items.some((item) => item.packageCount > 0))
-      return NextResponse.json(
-        { error: "An approved basket must contain at least one package" },
-        { status: 400 },
-      );
-
     const { id } = await context.params;
     const basket = await prisma.orderBasketRequest.findFirst({
       where: { id, businessId: organizationId, status: "PENDING" },
-      include: { lines: true, supplier: { select: { name: true } } },
+      include: {
+        supplier: {
+          include: {
+            products: {
+              where: {
+                productId: {
+                  in: parsed.data.items.map((item) => item.productId),
+                },
+                product: { active: true },
+              },
+              include: {
+                product: {
+                  select: { id: true, name: true, baseUnit: true },
+                },
+                receiptLines: {
+                  orderBy: [
+                    { receipt: { receiptDate: "desc" } },
+                    { createdAt: "desc" },
+                  ],
+                  take: 1,
+                  select: { packagePrice: true },
+                },
+              },
+            },
+          },
+        },
+      },
     });
     if (!basket)
       return NextResponse.json(
@@ -59,37 +80,47 @@ export async function PATCH(
         { status: 404 },
       );
 
-    const submitted = new Map(
-      parsed.data.items.map((item) => [item.lineId, item.packageCount]),
+    const products = new Map(
+      basket.supplier.products.map((link) => [link.productId, link]),
     );
-    if (
-      submitted.size !== basket.lines.length ||
-      basket.lines.some((line) => !submitted.has(line.id))
-    )
+    if (parsed.data.items.some((item) => !products.has(item.productId)))
       return NextResponse.json(
-        { error: "The basket changed. Refresh before approving it." },
-        { status: 409 },
+        { error: "One or more items do not belong to this supplier" },
+        { status: 400 },
       );
 
     const reviewedAt = new Date();
     await prisma.$transaction(async (tx) => {
-      for (const line of basket.lines) {
-        const packageCount = submitted.get(line.id)!;
-        const unitsPerPackage = Math.max(
-          finiteNumber(line.unitsPerPackage, 1),
-          1,
-        );
-        const price = finiteNumberOrNull(line.latestPackagePrice);
-        await tx.orderBasketRequestLine.update({
-          where: { id: line.id },
-          data: {
-            packageCount,
-            requestedQuantity: packageCount * unitsPerPackage,
+      await tx.orderBasketRequestLine.deleteMany({
+        where: { requestId: basket.id },
+      });
+      await tx.orderBasketRequestLine.createMany({
+        data: parsed.data.items.map((item) => {
+          const link = products.get(item.productId)!;
+          const unitsPerPackage = Math.max(
+            finiteNumber(link.unitsPerPackage, 1),
+            1,
+          );
+          const price = finiteNumberOrNull(
+            link.receiptLines[0]?.packagePrice ?? link.latestPackagePrice,
+          );
+          return {
+            requestId: basket.id,
+            productId: link.product.id,
+            productName: link.product.name,
+            supplierSku: link.supplierSku,
+            unit: link.product.baseUnit,
+            packageCount: item.packageCount,
+            requestedQuantity: item.requestedQuantity,
+            unitsPerPackage,
+            latestPackagePrice: price,
             estimatedCost:
-              price === null ? null : Number((price * packageCount).toFixed(2)),
-          },
-        });
-      }
+              price === null
+                ? null
+                : Number((price * item.packageCount).toFixed(2)),
+          };
+        }),
+      });
       await tx.orderBasketRequest.update({
         where: { id: basket.id },
         data: {
@@ -109,7 +140,7 @@ export async function PATCH(
             supplierId: basket.supplierId,
             supplierName: basket.supplier.name,
             requestedById: basket.requestedById,
-            lineCount: basket.lines.length,
+            lineCount: parsed.data.items.length,
           },
         },
       });
