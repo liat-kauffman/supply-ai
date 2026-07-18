@@ -8,6 +8,7 @@ Supplai is a human-in-the-loop inventory operations platform for cafés. It give
 - Inventory search and filtering by status, category, and supplier.
 - Manual inventory counts in half-unit increments.
 - Photo-based count proposals through Gemini, with confidence, warnings, and explicit manager approval.
+- Mobile supplier baskets that employees can adjust and send to managers for approval, with copy-ready approved order lists.
 - Email/password authentication and email verification with Better Auth.
 - Organization workspaces with `owner`, `manager`, and `employee` memberships.
 - Receipt-driven onboarding that accepts one receipt per supplier, combines the extracted catalog with Gemini OCR, and then requires an editable review.
@@ -187,4 +188,4 @@ pnpm build
 
 ## Project status
 
-The repository contains the working application shell, authentication and tenancy foundation, receipt-driven business onboarding, organization-scoped inventory persistence, audited count movements, live dashboard and ordering recommendations, receipt history and exports, and Gemini receipt/photo extraction routes. The next major step is storing AI proposals before approval and turning recommended supplier baskets into auditable purchase-order workflows.
+The repository contains the working application shell, authentication and tenancy foundation, receipt-driven business onboarding, organization-scoped inventory persistence, audited count movements, live dashboard and ordering recommendations, employee-to-manager basket approvals, copy-ready supplier lists, receipt history and exports, and Gemini receipt/photo extraction routes. The next major step is storing AI proposals before approval and expanding approved baskets into purchase orders with supplier transmission and receiving states.

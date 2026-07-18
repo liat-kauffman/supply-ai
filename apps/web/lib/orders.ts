@@ -45,6 +45,33 @@ export interface OrdersData {
   baskets: SupplierBasket[];
 }
 
+export interface OrderApprovalLine {
+  id: string;
+  productId: string;
+  productName: string;
+  supplierSku: string | null;
+  unit: string;
+  requestedQuantity: number;
+  unitsPerPackage: number;
+  packageCount: number;
+  latestPackagePrice: number | null;
+  estimatedCost: number | null;
+}
+
+export interface OrderApprovalRequest {
+  id: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
+  supplierId: string;
+  supplierName: string;
+  currency: string;
+  note: string | null;
+  requesterName: string;
+  reviewerName: string | null;
+  createdAt: string;
+  reviewedAt: string | null;
+  lines: OrderApprovalLine[];
+}
+
 function currentQuantity(movements: Array<{ quantityDelta: unknown }>) {
   return movements.reduce(
     (total, movement) => total + finiteNumber(movement.quantityDelta),
@@ -308,4 +335,51 @@ export async function getOrdersData(
     },
     baskets: orderedBaskets,
   };
+}
+
+export async function getOrderApprovalRequests(
+  organizationId: string,
+  userId: string,
+  role: string,
+): Promise<OrderApprovalRequest[]> {
+  const canReview = role === "owner" || role === "manager";
+  const requests = await prisma.orderBasketRequest.findMany({
+    where: {
+      businessId: organizationId,
+      ...(canReview ? {} : { requestedById: userId }),
+    },
+    orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+    take: 40,
+    include: {
+      supplier: { select: { name: true } },
+      requestedBy: { select: { name: true } },
+      reviewedBy: { select: { name: true } },
+      lines: { orderBy: { productName: "asc" } },
+    },
+  });
+
+  return requests.map((request) => ({
+    id: request.id,
+    status: request.status,
+    supplierId: request.supplierId,
+    supplierName: displayText(request.supplier.name, "Supplier"),
+    currency: displayText(request.currency, "ILS"),
+    note: displayText(request.note, "") || null,
+    requesterName: displayText(request.requestedBy.name, "Employee"),
+    reviewerName: displayText(request.reviewedBy?.name, "") || null,
+    createdAt: request.createdAt.toISOString(),
+    reviewedAt: request.reviewedAt?.toISOString() ?? null,
+    lines: request.lines.map((line) => ({
+      id: line.id,
+      productId: line.productId,
+      productName: displayText(line.productName, "Item"),
+      supplierSku: displayText(line.supplierSku, "") || null,
+      unit: displayText(line.unit, "units"),
+      requestedQuantity: finiteNumber(line.requestedQuantity),
+      unitsPerPackage: finiteNumber(line.unitsPerPackage, 1),
+      packageCount: Math.max(0, line.packageCount),
+      latestPackagePrice: finiteNumberOrNull(line.latestPackagePrice),
+      estimatedCost: finiteNumberOrNull(line.estimatedCost),
+    })),
+  }));
 }

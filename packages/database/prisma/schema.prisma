@@ -34,6 +34,12 @@ enum InventoryMovementType {
   CORRECTION
 }
 
+enum OrderBasketRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model BusinessProfile {
   id                    String              @id
   timezone              String              @default("Asia/Jerusalem")
@@ -48,6 +54,7 @@ model BusinessProfile {
   receipts              Receipt[]
   movements             InventoryMovement[]
   auditEvents           AuditEvent[]
+  orderBasketRequests   OrderBasketRequest[]
 }
 
 model User {
@@ -69,6 +76,8 @@ model User {
   receipts      Receipt[]
   movements     InventoryMovement[]
   auditEvents   AuditEvent[]
+  requestedOrderBaskets OrderBasketRequest[] @relation("OrderBasketRequester")
+  reviewedOrderBaskets  OrderBasketRequest[] @relation("OrderBasketReviewer")
 }
 
 model Session {
@@ -209,6 +218,7 @@ model Product {
   supplierProducts     SupplierProduct[]
   receiptLines         ReceiptLine[]
   movements            InventoryMovement[]
+  orderRequestLines    OrderBasketRequestLine[]
 
   @@index([businessId, active])
 }
@@ -229,6 +239,7 @@ model Supplier {
   business              BusinessProfile   @relation(fields: [businessId], references: [id], onDelete: Cascade)
   products              SupplierProduct[]
   receipts              Receipt[]
+  orderBasketRequests   OrderBasketRequest[]
 
   @@index([businessId, active])
 }
@@ -336,4 +347,46 @@ model AuditEvent {
   actor      User?           @relation(fields: [actorId], references: [id])
 
   @@index([businessId, occurredAt])
+}
+
+model OrderBasketRequest {
+  id            String                   @id @default(cuid())
+  businessId    String
+  supplierId    String
+  requestedById String
+  reviewedById  String?
+  status        OrderBasketRequestStatus @default(PENDING)
+  currency      String                   @default("ILS")
+  note          String?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  reviewedAt    DateTime?
+  business      BusinessProfile          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  supplier      Supplier                 @relation(fields: [supplierId], references: [id])
+  requestedBy   User                     @relation("OrderBasketRequester", fields: [requestedById], references: [id])
+  reviewedBy    User?                    @relation("OrderBasketReviewer", fields: [reviewedById], references: [id])
+  lines         OrderBasketRequestLine[]
+
+  @@index([businessId, status, createdAt])
+  @@index([requestedById, status])
+  @@index([supplierId, status])
+}
+
+model OrderBasketRequestLine {
+  id                  String             @id @default(cuid())
+  requestId           String
+  productId           String
+  productName         String
+  supplierSku         String?
+  unit                String
+  requestedQuantity   Decimal            @db.Decimal(12, 3)
+  unitsPerPackage     Decimal            @db.Decimal(12, 3)
+  packageCount        Int
+  latestPackagePrice  Decimal?           @db.Decimal(12, 2)
+  estimatedCost       Decimal?           @db.Decimal(12, 2)
+  request             OrderBasketRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  product             Product            @relation(fields: [productId], references: [id])
+
+  @@unique([requestId, productId])
+  @@index([productId])
 }

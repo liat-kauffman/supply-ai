@@ -13,6 +13,10 @@ describe("authentication role boundaries", () => {
     expect(employee.authorize({ order: ["approve"] }).success).toBe(false);
   });
 
+  it("allows employees to edit a basket before requesting approval", () => {
+    expect(employee.authorize({ order: ["read", "edit"] }).success).toBe(true);
+  });
+
   it("keeps platform administration independent from company roles", () => {
     expect(superAdmin.authorize({ user: ["list", "ban"] }).success).toBe(true);
   });

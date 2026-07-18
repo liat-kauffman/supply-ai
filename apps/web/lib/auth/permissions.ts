@@ -52,7 +52,7 @@ export const employee = organizationAccessControl.newRole({
   ...organizationMemberDefaults.statements,
   inventory: ["read", "count"],
   receipt: ["read", "upload"],
-  order: ["read"],
+  order: ["read", "edit"],
   worker: [],
   settings: ["read"],
   audit: [],
