@@ -5,6 +5,7 @@ import {
   type ReceiptHistoryItem,
 } from "@/components/receipts/receipts-shell";
 import { requireOnboardedCompany } from "@/lib/auth/server";
+import { displayText, finiteNumber, finiteNumberOrNull } from "@/lib/display";
 
 export default async function ReceiptsPage() {
   const { organizationId, session } = await requireOnboardedCompany();
@@ -25,34 +26,32 @@ export default async function ReceiptsPage() {
   const history: ReceiptHistoryItem[] = receipts.map((receipt) => ({
     id: receipt.id,
     receiptDate: receipt.receiptDate.toISOString().slice(0, 10),
-    supplier: receipt.supplier.name,
-    invoiceNumber: receipt.invoiceNumber,
-    fileName: receipt.fileName,
-    confidence: receipt.confidence === null ? null : Number(receipt.confidence),
-    vatAmount: receipt.vatAmount === null ? null : Number(receipt.vatAmount),
-    totalAmount:
-      receipt.totalAmount === null ? null : Number(receipt.totalAmount),
-    currency: receipt.currency,
-    status: receipt.status,
+    supplier: displayText(receipt.supplier.name, "Supplier"),
+    invoiceNumber: displayText(receipt.invoiceNumber, "") || null,
+    fileName: displayText(receipt.fileName, "") || null,
+    confidence: finiteNumberOrNull(receipt.confidence),
+    vatAmount: finiteNumberOrNull(receipt.vatAmount),
+    totalAmount: finiteNumberOrNull(receipt.totalAmount),
+    currency: displayText(receipt.currency, "ILS"),
+    status: displayText(receipt.status, "recorded"),
     lines: receipt.lines.map((line) => ({
       id: line.id,
-      name: line.name,
-      description: line.description,
-      category: line.category,
-      supplierSku: line.supplierSku,
-      quantity: Number(line.quantity),
-      unit: line.unit,
-      packagePrice:
-        line.packagePrice === null ? null : Number(line.packagePrice),
-      lineTotal: line.lineTotal === null ? null : Number(line.lineTotal),
+      name: displayText(line.name, "Item"),
+      description: displayText(line.description, "") || null,
+      category: displayText(line.category, "") || null,
+      supplierSku: displayText(line.supplierSku, "") || null,
+      quantity: finiteNumber(line.quantity),
+      unit: displayText(line.unit, "units"),
+      packagePrice: finiteNumberOrNull(line.packagePrice),
+      lineTotal: finiteNumberOrNull(line.lineTotal),
     })),
   }));
 
   return (
     <ReceiptsShell
-      companyName={organization.name}
+      companyName={displayText(organization.name, "Company")}
       receipts={history}
-      userName={session.user.name}
+      userName={displayText(session.user.name, "User")}
     />
   );
 }

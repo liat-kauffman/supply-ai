@@ -2,6 +2,7 @@ import { prisma } from "@supply/database";
 
 import { OrdersShell } from "@/components/orders/orders-shell";
 import { requireOnboardedCompany } from "@/lib/auth/server";
+import { displayText } from "@/lib/display";
 import { getOrdersData } from "@/lib/orders";
 
 export default async function OrdersPage() {
@@ -16,9 +17,9 @@ export default async function OrdersPage() {
 
   return (
     <OrdersShell
-      companyName={organization.name}
+      companyName={displayText(organization.name, "Company")}
       orders={orders}
-      userName={session.user.name}
+      userName={displayText(session.user.name, "User")}
     />
   );
 }

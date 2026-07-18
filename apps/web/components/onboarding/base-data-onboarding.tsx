@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { displayPercent, displayText } from "@/lib/display";
 
 interface SetupItem {
   id: string;
@@ -622,14 +623,21 @@ export function BaseDataOnboarding({
                         <Sparkles />
                         <span>OCR confidence</span>
                         <strong>
-                          {Math.round(processed.confidence * 100)}%
+                          {displayPercent(processed.confidence * 100)}
                         </strong>
                       </div>
                     </div>
                     {processed.warnings.length ? (
                       <div className="ocr-warning">
-                        <strong>Check {processed.fileName}</strong>
-                        <span>{processed.warnings.join(" · ")}</span>
+                        <strong>
+                          Check {displayText(processed.fileName, "receipt")}
+                        </strong>
+                        <span>
+                          {processed.warnings
+                            .map((warning) => displayText(warning, ""))
+                            .filter(Boolean)
+                            .join(" · ") || "Review the extracted values"}
+                        </span>
                       </div>
                     ) : null}
                   </div>

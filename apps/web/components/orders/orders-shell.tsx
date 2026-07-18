@@ -8,18 +8,11 @@ import { MobileNavigation } from "@/components/dashboard/mobile-navigation";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { displayMoney, displayNumber, displayText } from "@/lib/display";
 import type { OrdersData } from "@/lib/orders";
 
-function money(value: number, currency: string) {
-  return new Intl.NumberFormat("en-IL", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 function quantity(value: number) {
-  return Number.isInteger(value) ? String(value) : value.toFixed(1);
+  return displayNumber(value, { maximumFractionDigits: 1 });
 }
 
 export function OrdersShell({
@@ -68,7 +61,7 @@ export function OrdersShell({
               <ShoppingBag />
             </span>
             <div>
-              <strong>{orders.summary.supplierCount}</strong>
+              <strong>{displayNumber(orders.summary.supplierCount)}</strong>
               <small>supplier baskets</small>
             </div>
           </article>
@@ -77,7 +70,7 @@ export function OrdersShell({
               <PackageOpen />
             </span>
             <div>
-              <strong>{orders.summary.itemCount}</strong>
+              <strong>{displayNumber(orders.summary.itemCount)}</strong>
               <small>items to reorder</small>
             </div>
           </article>
@@ -86,7 +79,7 @@ export function OrdersShell({
               <AlertTriangle />
             </span>
             <div>
-              <strong>{orders.summary.criticalCount}</strong>
+              <strong>{displayNumber(orders.summary.criticalCount)}</strong>
               <small>completely out of stock</small>
             </div>
           </article>
@@ -96,7 +89,7 @@ export function OrdersShell({
             </span>
             <div>
               <strong>
-                {money(orders.summary.basketValue, orders.currency)}
+                {displayMoney(orders.summary.basketValue, orders.currency)}
               </strong>
               <small>estimated basket value</small>
             </div>
@@ -111,21 +104,23 @@ export function OrdersShell({
                   <div className="order-basket-identity">
                     <span className="order-basket-logo">{basket.logo}</span>
                     <div>
-                      <h2>{basket.supplierName}</h2>
+                      <h2>{displayText(basket.supplierName, "Supplier")}</h2>
                       <p>
                         {basket.deliveryLabel} · cutoff {basket.cutoffLabel}
                       </p>
                     </div>
                   </div>
                   <div className="order-basket-meta">
-                    <Badge variant="outline">{basket.itemCount} items</Badge>
+                    <Badge variant="outline">
+                      {displayNumber(basket.itemCount)} items
+                    </Badge>
                     <strong>
-                      {money(basket.basketValue, basket.currency)}
+                      {displayMoney(basket.basketValue, basket.currency)}
                     </strong>
                     <small>
                       {basket.minimumValue > 0
                         ? basket.remainingValue > 0
-                          ? `${money(
+                          ? `${displayMoney(
                               basket.remainingValue,
                               basket.currency,
                             )} below supplier target`
@@ -152,44 +147,54 @@ export function OrdersShell({
                       {basket.items.map((item) => (
                         <tr key={item.productId}>
                           <td>
-                            <strong>{item.productName}</strong>
+                            <strong>
+                              {displayText(item.productName, "Item")}
+                            </strong>
                             <small>
-                              {item.supplierSku
-                                ? `SKU ${item.supplierSku}`
+                              {displayText(item.supplierSku, "")
+                                ? `SKU ${displayText(item.supplierSku)}`
                                 : "No supplier SKU"}
                               {" · "}
                               {item.lastReceiptDate
                                 ? `last receipt ${item.lastReceiptDate}`
                                 : "no receipt history yet"}
                               {item.lastReceiptQuantity !== null
-                                ? ` · last qty ${quantity(item.lastReceiptQuantity)} ${item.unit}`
+                                ? ` · last qty ${quantity(item.lastReceiptQuantity)} ${displayText(item.unit, "units")}`
                                 : ""}
                             </small>
                           </td>
                           <td>
-                            {quantity(item.currentQuantity)} {item.unit}
+                            {quantity(item.currentQuantity)}{" "}
+                            {displayText(item.unit, "units")}
                           </td>
                           <td>
-                            {quantity(item.minimumQuantity)} {item.unit}
+                            {quantity(item.minimumQuantity)}{" "}
+                            {displayText(item.unit, "units")}
                           </td>
                           <td>
-                            {quantity(item.usageSinceLastReceipt)} {item.unit}
+                            {quantity(item.usageSinceLastReceipt)}{" "}
+                            {displayText(item.unit, "units")}
                           </td>
                           <td>
-                            {quantity(item.recommendedQuantity)} {item.unit}
+                            {quantity(item.recommendedQuantity)}{" "}
+                            {displayText(item.unit, "units")}
                             <small>
                               shortage {quantity(item.shortageQuantity)}{" "}
-                              {item.unit}
+                              {displayText(item.unit, "units")}
                             </small>
                           </td>
                           <td>
-                            {item.packageCount} ×{" "}
-                            {quantity(item.unitsPerPackage)} {item.unit}
+                            {displayNumber(item.packageCount)} ×{" "}
+                            {quantity(item.unitsPerPackage)}{" "}
+                            {displayText(item.unit, "units")}
                           </td>
                           <td>
                             {item.estimatedCost === null
                               ? "—"
-                              : money(item.estimatedCost, basket.currency)}
+                              : displayMoney(
+                                  item.estimatedCost,
+                                  basket.currency,
+                                )}
                           </td>
                         </tr>
                       ))}

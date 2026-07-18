@@ -33,6 +33,12 @@ import { Sidebar } from "@/components/dashboard/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  displayNumber,
+  displayPercent,
+  displayText,
+  finiteNumberOrNull,
+} from "@/lib/display";
 import { type InventoryItem, type InventoryStatus } from "./inventory-data";
 
 const filters: Array<{ label: string; value: "all" | InventoryStatus }> = [
@@ -600,7 +606,7 @@ export function InventoryShell({
                       </div>
                     </div>
                     <div className="inventory-quantity">
-                      <strong>{item.quantity}</strong>
+                      <strong>{displayNumber(item.quantity)}</strong>
                       <span>{item.unit}</span>
                       <Progress
                         indicatorClassName={item.status}
@@ -608,7 +614,7 @@ export function InventoryShell({
                       />
                     </div>
                     <div className="inventory-minimum">
-                      <strong>{item.minimum}</strong>
+                      <strong>{displayNumber(item.minimum)}</strong>
                       <span>{item.unit}</span>
                     </div>
                     <div>
@@ -746,13 +752,13 @@ export function InventoryShell({
               <section className="item-description-card">
                 <div>
                   <small>Current amount</small>
-                  <strong>{selectedItem.quantity}</strong>
-                  <span>{selectedItem.unit}</span>
+                  <strong>{displayNumber(selectedItem.quantity)}</strong>
+                  <span>{displayText(selectedItem.unit, "units")}</span>
                 </div>
                 <div>
                   <small>Minimum level</small>
-                  <strong>{selectedItem.minimum}</strong>
-                  <span>{selectedItem.unit}</span>
+                  <strong>{displayNumber(selectedItem.minimum)}</strong>
+                  <span>{displayText(selectedItem.unit, "units")}</span>
                 </div>
                 <p>{selectedItem.description}</p>
               </section>
@@ -774,7 +780,9 @@ export function InventoryShell({
                   className="item-minimum-form"
                   onSubmit={(event) => {
                     event.preventDefault();
-                    updateItemDetails({ minimum: Number(minimumQuantity) });
+                    const minimum = finiteNumberOrNull(minimumQuantity);
+                    if (minimum === null) return;
+                    updateItemDetails({ minimum });
                   }}
                 >
                   <label>
@@ -797,6 +805,7 @@ export function InventoryShell({
                     disabled={
                       isItemSaving ||
                       !minimumQuantity ||
+                      finiteNumberOrNull(minimumQuantity) === null ||
                       Number(minimumQuantity) < 0
                     }
                     type="submit"
@@ -925,10 +934,11 @@ export function InventoryShell({
                       <Sparkles /> AI count proposal
                     </span>
                     <div>
-                      <strong>{countProposal.count}</strong>
+                      <strong>{displayNumber(countProposal.count)}</strong>
                       <em>{selectedItem.unit}</em>
                       <Badge variant="outline">
-                        {Math.round(countProposal.confidence * 100)}% confidence
+                        {displayPercent(countProposal.confidence * 100)}{" "}
+                        confidence
                       </Badge>
                     </div>
                     <p>{countProposal.explanation}</p>
@@ -968,7 +978,9 @@ export function InventoryShell({
                 <form
                   onSubmit={(event) => {
                     event.preventDefault();
-                    updateQuantity(Number(manualQuantity), "manual");
+                    const quantity = finiteNumberOrNull(manualQuantity);
+                    if (quantity === null) return;
+                    updateQuantity(quantity, "manual");
                   }}
                 >
                   <label>
@@ -992,6 +1004,7 @@ export function InventoryShell({
                       isCountSaving ||
                       !selectedItem.active ||
                       !manualQuantity ||
+                      finiteNumberOrNull(manualQuantity) === null ||
                       Number(manualQuantity) < 0
                     }
                     type="submit"

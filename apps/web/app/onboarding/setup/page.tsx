@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { BaseDataOnboarding } from "@/components/onboarding/base-data-onboarding";
 import { requireCompany } from "@/lib/auth/server";
+import { displayText } from "@/lib/display";
 
 export default async function BaseDataOnboardingPage({
   searchParams,
@@ -24,7 +25,7 @@ export default async function BaseDataOnboardingPage({
 
   return (
     <BaseDataOnboarding
-      companyName={profile?.organization.name ?? "Your company"}
+      companyName={displayText(profile?.organization.name, "Your company")}
       existingSetup={Boolean(profile?.onboardingCompletedAt)}
     />
   );

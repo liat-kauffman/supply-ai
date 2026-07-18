@@ -1,5 +1,7 @@
 import { prisma } from "@supply/database";
 
+import { displayText, finiteNumber, finiteNumberOrNull } from "@/lib/display";
+
 export interface OrderBasketItem {
   productId: string;
   productName: string;
@@ -45,13 +47,13 @@ export interface OrdersData {
 
 function currentQuantity(movements: Array<{ quantityDelta: unknown }>) {
   return movements.reduce(
-    (total, movement) => total + Number(movement.quantityDelta),
+    (total, movement) => total + finiteNumber(movement.quantityDelta),
     0,
   );
 }
 
 function currentMinimum(value: unknown) {
-  return Number(value ?? 0);
+  return finiteNumber(value);
 }
 
 function getWeekdayIndex(date: Date, timeZone: string) {
@@ -177,7 +179,7 @@ export async function getOrdersData(
       (total, movement) => {
         if (lastReceiptDate && movement.occurredAt <= lastReceiptDate)
           return total;
-        const delta = Number(movement.quantityDelta);
+        const delta = finiteNumber(movement.quantityDelta);
         return delta < 0 ? total + Math.abs(delta) : total;
       },
       0,
@@ -185,7 +187,7 @@ export async function getOrdersData(
     const shortageQuantity = Math.max(minimum - onHand, 0);
     const baseRecommended = Math.max(shortageQuantity, usageSinceLastReceipt);
     const unitsPerPackage = Math.max(
-      Number(supplierProduct.unitsPerPackage ?? 1),
+      finiteNumber(supplierProduct.unitsPerPackage, 1),
       1,
     );
     const minimumPackages = Math.max(supplierProduct.minimumPackages ?? 0, 0);
@@ -202,8 +204,8 @@ export async function getOrdersData(
       latestReceiptLine?.packagePrice === undefined
         ? supplierProduct.latestPackagePrice === null
           ? null
-          : Number(supplierProduct.latestPackagePrice)
-        : Number(latestReceiptLine.packagePrice);
+          : finiteNumberOrNull(supplierProduct.latestPackagePrice)
+        : finiteNumberOrNull(latestReceiptLine.packagePrice);
     const estimatedCost =
       latestPackagePrice === null
         ? null
@@ -211,14 +213,14 @@ export async function getOrdersData(
 
     const supplier = supplierProduct.supplier;
     const orderOffset = daysUntilOrder(supplier.orderDays, todayIndex);
-    const minimumValue = Number(
+    const minimumValue = finiteNumber(
       supplier.freeDeliveryThreshold ?? supplier.minimumOrderValue ?? 0,
     );
     const existing = baskets.get(supplier.id) ?? {
       supplierId: supplier.id,
-      supplierName: supplier.name,
-      logo: supplier.name.slice(0, 1).toUpperCase(),
-      currency: supplier.currency || defaultCurrency,
+      supplierName: displayText(supplier.name, "Supplier"),
+      logo: displayText(supplier.name, "S").slice(0, 1).toUpperCase(),
+      currency: displayText(supplier.currency, defaultCurrency),
       cutoffLabel:
         orderOffset === 0
           ? cutoffLabel(supplier.cutoffTime, true, timeZone, now)
@@ -238,8 +240,8 @@ export async function getOrdersData(
 
     existing.items.push({
       productId: product.id,
-      productName: product.name,
-      unit: product.baseUnit,
+      productName: displayText(product.name, "Unnamed item"),
+      unit: displayText(product.baseUnit, "units"),
       currentQuantity: Number(onHand.toFixed(3)),
       minimumQuantity: Number(minimum.toFixed(3)),
       shortageQuantity: Number(shortageQuantity.toFixed(3)),
@@ -249,13 +251,13 @@ export async function getOrdersData(
       packageCount,
       latestPackagePrice,
       estimatedCost,
-      supplierSku: supplierProduct.supplierSku,
+      supplierSku: displayText(supplierProduct.supplierSku, "") || null,
       lastReceiptDate: receiptDateLabel(lastReceiptDate),
       lastReceiptQuantity:
         latestReceiptLine?.quantity === null ||
         latestReceiptLine?.quantity === undefined
           ? null
-          : Number(latestReceiptLine.quantity),
+          : finiteNumberOrNull(latestReceiptLine.quantity),
     });
     existing.basketValue += estimatedCost ?? 0;
     existing.itemCount += 1;

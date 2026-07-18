@@ -1,6 +1,7 @@
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { requireOnboardedCompany } from "@/lib/auth/server";
 import { getDashboardData } from "@/lib/dashboard";
+import { displayText } from "@/lib/display";
 import { prisma } from "@supply/database";
 
 export default async function DashboardPage() {
@@ -14,9 +15,9 @@ export default async function DashboardPage() {
   ]);
   return (
     <DashboardShell
-      companyName={organization.name}
+      companyName={displayText(organization.name, "Company")}
       dashboard={dashboard}
-      userName={session.user.name}
+      userName={displayText(session.user.name, "User")}
     />
   );
 }

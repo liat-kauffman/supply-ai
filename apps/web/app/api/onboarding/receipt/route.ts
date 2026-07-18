@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { ApiAccessError, requireApiCompany } from "@/lib/auth/api";
+import { displayText } from "@/lib/display";
 import { generateGeminiContent } from "@/lib/gemini";
 
 export const runtime = "nodejs";
@@ -181,8 +182,19 @@ export async function POST(request: Request) {
       const draft = receiptDraftSchema.parse(parseModelJson(text));
       return NextResponse.json({
         ...draft,
+        supplierName: displayText(draft.supplierName, ""),
+        receiptDate: displayText(draft.receiptDate, ""),
+        invoiceNumber: displayText(draft.invoiceNumber, ""),
+        warnings: draft.warnings
+          .map((warning) => displayText(warning, ""))
+          .filter(Boolean),
         items: draft.items.map((item) => ({
           ...item,
+          name: displayText(item.name, ""),
+          description: displayText(item.description, ""),
+          category: displayText(item.category, "Uncategorized"),
+          supplierSku: displayText(item.supplierSku, ""),
+          unit: displayText(item.unit, "units"),
           quantity: Math.round(item.quantity * 2) / 2,
         })),
       });

@@ -1,5 +1,7 @@
 import { prisma } from "@supply/database";
 
+import { displayText, finiteNumber } from "@/lib/display";
+
 export interface DashboardData {
   headerEyebrow: string;
   metrics: Array<{
@@ -54,7 +56,7 @@ function formatCurrency(value: number, currency: string) {
     style: "currency",
     currency,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(finiteNumber(value));
 }
 
 function shortCurrency(value: number, currency: string) {
@@ -62,7 +64,7 @@ function shortCurrency(value: number, currency: string) {
     style: "currency",
     currency,
     maximumFractionDigits: 0,
-  }).format(value);
+  }).format(finiteNumber(value));
 }
 
 function getWeekdayIndex(date: Date, timeZone: string) {
@@ -101,13 +103,13 @@ function headerEyebrow(date: Date, timeZone: string) {
 
 function currentQuantity(movements: Array<{ quantityDelta: unknown }>) {
   return movements.reduce(
-    (total, movement) => total + Number(movement.quantityDelta),
+    (total, movement) => total + finiteNumber(movement.quantityDelta),
     0,
   );
 }
 
 function currentMinimum(value: unknown) {
-  return Number(value ?? 0);
+  return finiteNumber(value);
 }
 
 function daysUntilOrder(orderDays: number[], today: number) {
@@ -205,14 +207,16 @@ export async function getDashboardData(
         minimum > 0
           ? Math.max(0, Math.min(100, (quantity / minimum) * 100))
           : 100;
-      const supplierName =
-        product.supplierProducts[0]?.supplier.name ?? "No supplier";
+      const supplierName = displayText(
+        product.supplierProducts[0]?.supplier.name,
+        "No supplier",
+      );
       return {
         id: product.id,
-        name: product.name,
+        name: displayText(product.name, "Unnamed item"),
         quantity,
         minimum,
-        unit: product.baseUnit,
+        unit: displayText(product.baseUnit, "units"),
         supplierName,
         lastMovementAt: product.movements[0]?.occurredAt ?? null,
         ratio,
@@ -244,13 +248,19 @@ export async function getDashboardData(
   const weeklySpend = weekReceipts.reduce(
     (total, receipt) =>
       total +
-      receipt.lines.reduce((sum, line) => sum + Number(line.lineTotal ?? 0), 0),
+      receipt.lines.reduce(
+        (sum, line) => sum + finiteNumber(line.lineTotal),
+        0,
+      ),
     0,
   );
   const previousWeeklySpend = previousWeekReceipts.reduce(
     (total, receipt) =>
       total +
-      receipt.lines.reduce((sum, line) => sum + Number(line.lineTotal ?? 0), 0),
+      receipt.lines.reduce(
+        (sum, line) => sum + finiteNumber(line.lineTotal),
+        0,
+      ),
     0,
   );
   const spendTrend =
@@ -357,15 +367,16 @@ export async function getDashboardData(
         if (!shortage || supplierProduct.latestPackagePrice === null)
           return total;
         const unitsPerPackage = Math.max(
-          Number(supplierProduct.unitsPerPackage),
+          finiteNumber(supplierProduct.unitsPerPackage, 1),
           1,
         );
         const packagesNeeded = Math.ceil(shortage / unitsPerPackage);
         return (
-          total + Number(supplierProduct.latestPackagePrice) * packagesNeeded
+          total +
+          finiteNumber(supplierProduct.latestPackagePrice) * packagesNeeded
         );
       }, 0);
-      const minimumValue = Number(
+      const minimumValue = finiteNumber(
         supplier.freeDeliveryThreshold ?? supplier.minimumOrderValue ?? 0,
       );
       return {

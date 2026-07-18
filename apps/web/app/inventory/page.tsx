@@ -1,5 +1,6 @@
 import { InventoryShell } from "@/components/inventory/inventory-shell";
 import { requireOnboardedCompany } from "@/lib/auth/server";
+import { displayText } from "@/lib/display";
 import { getInventoryItems } from "@/lib/inventory";
 import { prisma } from "@supply/database";
 
@@ -14,9 +15,9 @@ export default async function InventoryPage() {
   ]);
   return (
     <InventoryShell
-      companyName={organization.name}
+      companyName={displayText(organization.name, "Company")}
       initialItems={items}
-      userName={session.user.name}
+      userName={displayText(session.user.name, "User")}
     />
   );
 }

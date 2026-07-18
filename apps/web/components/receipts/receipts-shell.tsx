@@ -19,6 +19,13 @@ import { navigation } from "@/components/dashboard/dashboard-data";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  displayMoney,
+  displayNumber,
+  displayPercent,
+  displayText,
+  finiteNumber,
+} from "@/lib/display";
 
 export interface ReceiptHistoryItem {
   id: string;
@@ -51,14 +58,6 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 });
 
-function money(value: number, currency: string) {
-  return new Intl.NumberFormat("en-IL", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 2,
-  }).format(value);
-}
-
 export function ReceiptsShell({
   companyName,
   userName,
@@ -90,8 +89,13 @@ export function ReceiptsShell({
   const totalValue = receipts.reduce(
     (total, receipt) =>
       total +
-      (receipt.totalAmount ??
-        receipt.lines.reduce((sum, line) => sum + (line.lineTotal ?? 0), 0)),
+      finiteNumber(
+        receipt.totalAmount ??
+          receipt.lines.reduce(
+            (sum, line) => sum + finiteNumber(line.lineTotal),
+            0,
+          ),
+      ),
     0,
   );
   const primaryCurrency = receipts[0]?.currency ?? "ILS";
@@ -100,7 +104,7 @@ export function ReceiptsShell({
   const averageConfidence = receipts.length
     ? Math.round(
         (receipts.reduce(
-          (total, receipt) => total + (receipt.confidence ?? 1),
+          (total, receipt) => total + finiteNumber(receipt.confidence, 1),
           0,
         ) /
           receipts.length) *
@@ -171,7 +175,7 @@ export function ReceiptsShell({
               <FileSpreadsheet />
             </span>
             <div>
-              <strong>{money(totalValue, primaryCurrency)}</strong>
+              <strong>{displayMoney(totalValue, primaryCurrency)}</strong>
               <small>recorded purchase value</small>
             </div>
           </article>
@@ -200,7 +204,7 @@ export function ReceiptsShell({
               <div className="receipts-overview-stats">
                 <article>
                   <small>OCR confidence</small>
-                  <strong>{averageConfidence}%</strong>
+                  <strong>{displayPercent(averageConfidence)}</strong>
                   <span>Average across saved receipts</span>
                 </article>
                 <article>
@@ -220,7 +224,9 @@ export function ReceiptsShell({
                     </div>
                     <div>
                       <h2>
-                        {dateFormatter.format(new Date(`${date}T12:00:00Z`))}
+                        {Number.isNaN(new Date(`${date}T12:00:00Z`).getTime())
+                          ? "Unknown date"
+                          : dateFormatter.format(new Date(`${date}T12:00:00Z`))}
                       </h2>
                       <p>
                         {dateReceipts.length} receipt
@@ -228,14 +234,14 @@ export function ReceiptsShell({
                       </p>
                     </div>
                     <span>
-                      {money(
+                      {displayMoney(
                         dateReceipts.reduce(
                           (sum, receipt) =>
                             sum +
                             (receipt.totalAmount ??
                               receipt.lines.reduce(
                                 (lineSum, line) =>
-                                  lineSum + (line.lineTotal ?? 0),
+                                  lineSum + finiteNumber(line.lineTotal),
                                 0,
                               )),
                           0,
@@ -249,7 +255,7 @@ export function ReceiptsShell({
                       const receiptTotal =
                         receipt.totalAmount ??
                         receipt.lines.reduce(
-                          (sum, line) => sum + (line.lineTotal ?? 0),
+                          (sum, line) => sum + finiteNumber(line.lineTotal),
                           0,
                         );
                       return (
@@ -260,60 +266,85 @@ export function ReceiptsShell({
                         >
                           <summary>
                             <span className="receipt-supplier-mark">
-                              {receipt.supplier.slice(0, 1).toUpperCase()}
+                              {displayText(receipt.supplier, "S")
+                                .slice(0, 1)
+                                .toUpperCase()}
                             </span>
                             <span className="receipt-identity">
-                              <strong>{receipt.supplier}</strong>
+                              <strong>
+                                {displayText(receipt.supplier, "Supplier")}
+                              </strong>
                               <small>
-                                {receipt.invoiceNumber
-                                  ? `Invoice ${receipt.invoiceNumber}`
-                                  : (receipt.fileName ?? "Receipt import")}
+                                {displayText(receipt.invoiceNumber, "")
+                                  ? `Invoice ${displayText(receipt.invoiceNumber)}`
+                                  : displayText(
+                                      receipt.fileName,
+                                      "Receipt import",
+                                    )}
                               </small>
                               <span className="receipt-source-meta">
                                 <span>
                                   <FolderArchive />
-                                  {receipt.fileName ?? "Imported scan"}
+                                  {displayText(
+                                    receipt.fileName,
+                                    "Imported scan",
+                                  )}
                                 </span>
                                 <span>
                                   <Hash />
-                                  {receipt.invoiceNumber ?? "No invoice number"}
+                                  {displayText(
+                                    receipt.invoiceNumber,
+                                    "No invoice number",
+                                  )}
                                 </span>
                               </span>
                             </span>
                             <span className="receipt-meta">
                               <Badge className="receipt-status-badge">
-                                {receipt.status.toLowerCase()}
+                                {displayText(
+                                  receipt.status,
+                                  "recorded",
+                                ).toLowerCase()}
                               </Badge>
                               <small>{receipt.lines.length} lines</small>
                               {receipt.vatAmount !== null ? (
                                 <small>
                                   VAT{" "}
-                                  {money(receipt.vatAmount, receipt.currency)}
+                                  {displayMoney(
+                                    receipt.vatAmount,
+                                    receipt.currency,
+                                  )}
                                 </small>
                               ) : null}
                               {receipt.totalAmount !== null ? (
                                 <small>
                                   Total{" "}
-                                  {money(receipt.totalAmount, receipt.currency)}
+                                  {displayMoney(
+                                    receipt.totalAmount,
+                                    receipt.currency,
+                                  )}
                                 </small>
                               ) : null}
                               <small>
                                 {receipt.confidence === null
                                   ? "Reviewed"
-                                  : `${Math.round(receipt.confidence * 100)}% OCR`}
+                                  : `${displayPercent(
+                                      finiteNumber(receipt.confidence) * 100,
+                                    )} OCR`}
                               </small>
                             </span>
                             <strong className="receipt-total">
-                              {money(receiptTotal, receipt.currency)}
+                              {displayMoney(receiptTotal, receipt.currency)}
                             </strong>
                           </summary>
                           <div className="receipt-card-body">
                             <div className="receipt-line-chips">
                               {receipt.lines.slice(0, 4).map((line) => (
                                 <span key={line.id}>
-                                  {line.name}
+                                  {displayText(line.name, "Item")}
                                   <small>
-                                    {line.quantity} {line.unit}
+                                    {displayNumber(line.quantity)}{" "}
+                                    {displayText(line.unit, "units")}
                                   </small>
                                 </span>
                               ))}
@@ -337,22 +368,25 @@ export function ReceiptsShell({
                                   {receipt.lines.map((line) => (
                                     <tr key={line.id}>
                                       <td>
-                                        <strong>{line.name}</strong>
-                                        {line.description ? (
+                                        <strong>
+                                          {displayText(line.name, "Item")}
+                                        </strong>
+                                        {displayText(line.description, "") ? (
                                           <small className="receipt-line-description">
-                                            {line.description}
+                                            {displayText(line.description)}
                                           </small>
                                         ) : null}
                                       </td>
-                                      <td>{line.category || "—"}</td>
-                                      <td>{line.supplierSku || "—"}</td>
+                                      <td>{displayText(line.category)}</td>
+                                      <td>{displayText(line.supplierSku)}</td>
                                       <td>
-                                        {line.quantity} {line.unit}
+                                        {displayNumber(line.quantity)}{" "}
+                                        {displayText(line.unit, "units")}
                                       </td>
                                       <td>
                                         {line.packagePrice === null
                                           ? "—"
-                                          : money(
+                                          : displayMoney(
                                               line.packagePrice,
                                               receipt.currency,
                                             )}
@@ -360,7 +394,7 @@ export function ReceiptsShell({
                                       <td>
                                         {line.lineTotal === null
                                           ? "—"
-                                          : money(
+                                          : displayMoney(
                                               line.lineTotal,
                                               receipt.currency,
                                             )}
@@ -374,18 +408,26 @@ export function ReceiptsShell({
                               <span>
                                 {receipt.confidence === null
                                   ? "Reviewed import"
-                                  : `${Math.round(receipt.confidence * 100)}% OCR confidence`}
+                                  : `${displayPercent(
+                                      finiteNumber(receipt.confidence) * 100,
+                                    )} OCR confidence`}
                               </span>
                               {receipt.vatAmount !== null ? (
                                 <span>
                                   VAT{" "}
-                                  {money(receipt.vatAmount, receipt.currency)}
+                                  {displayMoney(
+                                    receipt.vatAmount,
+                                    receipt.currency,
+                                  )}
                                 </span>
                               ) : null}
                               {receipt.totalAmount !== null ? (
                                 <span>
                                   Total{" "}
-                                  {money(receipt.totalAmount, receipt.currency)}
+                                  {displayMoney(
+                                    receipt.totalAmount,
+                                    receipt.currency,
+                                  )}
                                 </span>
                               ) : null}
                               <span className="receipt-card-footer-total">

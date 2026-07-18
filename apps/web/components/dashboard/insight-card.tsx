@@ -2,6 +2,7 @@ import { ArrowRight, Sparkles } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { displayPercent, displayText, finiteNumberOrNull } from "@/lib/display";
 
 interface InsightCardProps {
   title: string;
@@ -24,20 +25,21 @@ export function InsightCard({
         </div>
         <div>
           <span className="ai-label">SUPPLAI INSIGHT</span>
-          <h3>{title}</h3>
-          <p>{description}</p>
+          <h3>{displayText(title, "No insight available yet")}</h3>
+          <p>{displayText(description, "More inventory data is needed.")}</p>
           <div className="evidence">
             <Badge variant="outline">
-              Confidence <strong>{confidence}%</strong>
+              Confidence <strong>{displayPercent(confidence)}</strong>
             </Badge>
             <Badge variant="outline">
-              {dataDays === null ? (
+              {finiteNumberOrNull(dataDays) === null ? (
                 <>
                   Uses <strong>live records</strong>
                 </>
               ) : (
                 <>
-                  Uses <strong>{dataDays} days</strong> of data
+                  Uses <strong>{finiteNumberOrNull(dataDays)} days</strong> of
+                  data
                 </>
               )}
             </Badge>

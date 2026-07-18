@@ -4,6 +4,7 @@ import type {
   InventoryItem,
   InventoryStatus,
 } from "@/components/inventory/inventory-data";
+import { displayText, finiteNumber } from "@/lib/display";
 
 const inventoryInclude = {
   movements: {
@@ -42,18 +43,21 @@ function updatedLabel(date?: Date): string {
 function mapProduct(product: InventoryProduct): InventoryItem | null {
   if (!product) return null;
   const quantity = product.movements.reduce(
-    (total, movement) => total + Number(movement.quantityDelta),
+    (total, movement) => total + finiteNumber(movement.quantityDelta),
     0,
   );
-  const minimum = Number(product.minimumStock ?? 0);
+  const minimum = finiteNumber(product.minimumStock);
   return {
     id: product.id,
-    name: product.name,
-    description: product.description ?? "No description added yet.",
-    category: product.category ?? "Uncategorized",
-    supplier: product.supplierProducts[0]?.supplier.name ?? "No supplier",
+    name: displayText(product.name, "Unnamed item"),
+    description: displayText(product.description, "No description added yet."),
+    category: displayText(product.category, "Uncategorized"),
+    supplier: displayText(
+      product.supplierProducts[0]?.supplier.name,
+      "No supplier",
+    ),
     quantity,
-    unit: product.baseUnit,
+    unit: displayText(product.baseUnit, "units"),
     minimum,
     active: product.active,
     updated: updatedLabel(product.movements[0]?.occurredAt),
