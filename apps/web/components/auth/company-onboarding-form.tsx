@@ -32,7 +32,7 @@ export function CompanyOnboardingForm() {
     setPending(false);
     if (result.error)
       return setError(result.error.message ?? "Unable to create company");
-    router.push("/");
+    router.push("/onboarding/setup");
     router.refresh();
   }
 
@@ -46,11 +46,6 @@ export function CompanyOnboardingForm() {
           placeholder="Supply Café"
           required
         />
-      </label>
-      <label>
-        Primary location
-        <input name="location" defaultValue="Main café" disabled />
-        <small>You can add more locations later.</small>
       </label>
       <label>
         Timezone

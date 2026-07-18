@@ -9,6 +9,9 @@ import { authClient } from "@/lib/auth-client";
 export function RegisterForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [verificationEmail, setVerificationEmail] = useState<string | null>(
+    null,
+  );
   const [pending, setPending] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -25,8 +28,27 @@ export function RegisterForm() {
     setPending(false);
     if (result.error)
       return setError(result.error.message ?? "Unable to create account");
+    setVerificationEmail(String(form.get("email")));
     setMessage(
       "Check your email to verify your account, then continue company setup.",
+    );
+  }
+
+  async function resendVerificationEmail() {
+    if (!verificationEmail) return;
+    setPending(true);
+    setError(null);
+    const result = await authClient.sendVerificationEmail({
+      email: verificationEmail,
+      callbackURL: "/onboarding/company",
+    });
+    setPending(false);
+    if (result.error)
+      return setError(
+        result.error.message ?? "Unable to resend verification email",
+      );
+    setMessage(
+      "A new verification email was sent. Check your inbox and spam folder.",
     );
   }
 
@@ -64,6 +86,16 @@ export function RegisterForm() {
       <Button disabled={pending || Boolean(message)} type="submit">
         {pending ? "Creating account…" : "Create owner account"}
       </Button>
+      {verificationEmail ? (
+        <Button
+          disabled={pending}
+          onClick={resendVerificationEmail}
+          type="button"
+          variant="secondary"
+        >
+          {pending ? "Sending…" : "Resend verification email"}
+        </Button>
+      ) : null}
       <small>
         Already registered? <Link href="/login">Sign in</Link>
       </small>

@@ -14,7 +14,7 @@ import {
 const baseURL = process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 
 export const auth = betterAuth({
-  appName: "Supplying",
+  appName: "Supplai",
   baseURL,
   secret: process.env.BETTER_AUTH_SECRET,
   database: prismaAdapter(prisma, { provider: "postgresql" }),
@@ -29,7 +29,7 @@ export const auth = betterAuth({
     async sendVerificationEmail({ user, url }) {
       await sendAuthEmail({
         to: user.email,
-        subject: "Verify your Supplying account",
+        subject: "Verify your Supplai account",
         actionUrl: url,
       });
     },
@@ -52,7 +52,7 @@ export const auth = betterAuth({
         const url = `${baseURL}/accept-invitation/${id}`;
         await sendAuthEmail({
           to: email,
-          subject: `Join ${invitedOrganization.name} on Supplying`,
+          subject: `Join ${invitedOrganization.name} on Supplai`,
           actionUrl: url,
         });
       },
@@ -65,7 +65,6 @@ export const auth = betterAuth({
               id: createdOrganization.id,
               timezone: "Asia/Jerusalem",
               currency: "ILS",
-              locations: { create: { name: "Main café" } },
             },
           });
         },

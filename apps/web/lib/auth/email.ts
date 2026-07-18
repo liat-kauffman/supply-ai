@@ -31,21 +31,21 @@ export async function sendAuthEmail(email: AuthEmail): Promise<void> {
     const resend = new Resend(resendApiKey);
     const actionUrl = escapeHtml(email.actionUrl);
     const { error } = await resend.emails.send({
-      from: from ?? "Supplying <onboarding@resend.dev>",
+      from: from ?? "Supplai <onboarding@resend.dev>",
       to: email.to,
       subject: email.subject,
       html: `
         <div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px;color:#18211e">
-          <p style="font-size:20px;font-weight:700;color:#173f35">Supplying</p>
+          <p style="font-size:20px;font-weight:700;color:#173f35">Supplai</p>
           <h1 style="font-size:24px">${escapeHtml(email.subject)}</h1>
           <p style="line-height:1.6;color:#5f6964">Use the secure link below to continue. If you did not request this, you can ignore this email.</p>
           <p style="margin:28px 0">
-            <a href="${actionUrl}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#173f35;color:#fff;text-decoration:none;font-weight:700">Continue to Supplying</a>
+            <a href="${actionUrl}" style="display:inline-block;padding:12px 18px;border-radius:8px;background:#173f35;color:#fff;text-decoration:none;font-weight:700">Continue to Supplai</a>
           </p>
           <p style="font-size:12px;color:#7d8581;word-break:break-all">${actionUrl}</p>
         </div>
       `,
-      text: `${email.subject}\n\nContinue to Supplying: ${email.actionUrl}\n\nIf you did not request this, ignore this email.`,
+      text: `${email.subject}\n\nContinue to Supplai: ${email.actionUrl}\n\nIf you did not request this, ignore this email.`,
     });
 
     if (error)
