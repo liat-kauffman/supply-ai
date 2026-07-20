@@ -77,6 +77,7 @@ export interface OrderCatalog {
 
 export interface OrderApprovalRequest {
   id: string;
+  isOwn: boolean;
   status: "PENDING" | "APPROVED" | "REJECTED";
   supplierId: string;
   supplierName: string;
@@ -429,6 +430,7 @@ export async function getOrderApprovalRequests(
 
   return requests.map((request) => ({
     id: request.id,
+    isOwn: request.requestedById === userId,
     status: request.status,
     supplierId: request.supplierId,
     supplierName: displayText(request.supplier.name, "Supplier"),

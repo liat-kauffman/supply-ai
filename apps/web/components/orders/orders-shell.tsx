@@ -6,9 +6,11 @@ import {
   Clipboard,
   LoaderCircle,
   PackageOpen,
+  Pencil,
   Plus,
   Save,
   Send,
+  ShoppingCart,
   ShoppingBag,
   Trash2,
   UserCheck,
@@ -27,6 +29,7 @@ import type {
   OrderApprovalCatalogItem,
   OrderApprovalLine,
   OrderApprovalRequest,
+  OrderBasketItem,
   OrderCatalog,
   OrdersData,
   SupplierBasket,
@@ -70,6 +73,32 @@ function quantity(value: number) {
   return displayNumber(value, { maximumFractionDigits: 1 });
 }
 
+function unitLabel(value: string) {
+  const unit = displayText(value, "items");
+  return ["unit", "units", "each", "ea", "pc", "pcs"].includes(
+    unit.toLowerCase(),
+  )
+    ? "items"
+    : unit;
+}
+
+function estimatedTotal(
+  items: Array<{
+    packageCount: number;
+    latestPackagePrice: number | null;
+  }>,
+  currency: string,
+) {
+  const pricedItems = items.filter((item) => item.latestPackagePrice !== null);
+  if (!pricedItems.length) return "Price unavailable";
+  const total = pricedItems.reduce(
+    (sum, item) => sum + item.packageCount * (item.latestPackagePrice ?? 0),
+    0,
+  );
+  const suffix = pricedItems.length < items.length ? " + unpriced items" : "";
+  return `${displayMoney(total, currency)}${suffix}`;
+}
+
 function requestDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Recently";
@@ -86,13 +115,15 @@ function approvedList(request: OrderApprovalRequest) {
     .filter((line) => line.packageCount > 0)
     .map((line) => {
       const sku = line.supplierSku ? ` · SKU ${line.supplierSku}` : "";
-      return `${line.productName}: ${line.packageCount} package${line.packageCount === 1 ? "" : "s"} (${quantity(line.requestedQuantity)} ${line.unit})${sku}`;
+      return `${line.productName}: ${line.packageCount} package${line.packageCount === 1 ? "" : "s"} (${quantity(line.requestedQuantity)} ${unitLabel(line.unit)})${sku}`;
     });
   return [
     `Order for ${request.supplierName}`,
     `Prepared from ${request.requesterName}'s basket`,
     "",
     ...lines,
+    "",
+    `Estimated total: ${estimatedTotal(request.lines, request.currency)}`,
   ].join("\n");
 }
 
@@ -132,7 +163,7 @@ export function OrdersShell({
     Record<string, EditableReviewItem[]>
   >(() =>
     Object.fromEntries(
-      pendingRequests.map((request) => [
+      approvalRequests.map((request) => [
         request.id,
         request.lines.map(editableLine),
       ]),
@@ -154,6 +185,9 @@ export function OrdersShell({
   const [newItems, setNewItems] = useState<EditableReviewItem[]>([]);
   const [newItemSelection, setNewItemSelection] = useState("");
   const [newOrderNote, setNewOrderNote] = useState("");
+  const [editingApprovedId, setEditingApprovedId] = useState<string | null>(
+    null,
+  );
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -169,7 +203,7 @@ export function OrdersShell({
     setReviewItems((current) => {
       const next = { ...current };
       for (const request of approvalRequests) {
-        if (request.status === "PENDING" && !next[request.id]) {
+        if (!next[request.id]) {
           next[request.id] = request.lines.map(editableLine);
         }
       }
@@ -177,9 +211,7 @@ export function OrdersShell({
     });
     setReviewNotes((current) => ({
       ...Object.fromEntries(
-        approvalRequests
-          .filter((request) => request.status === "PENDING")
-          .map((request) => [request.id, request.note ?? ""]),
+        approvalRequests.map((request) => [request.id, request.note ?? ""]),
       ),
       ...current,
     }));
@@ -252,6 +284,96 @@ export function OrdersShell({
         item.productId === productId ? { ...item, ...update } : item,
       ),
     );
+  }
+
+  function addSuggestionToBasket(
+    basket: SupplierBasket,
+    suggestion: OrderBasketItem,
+  ) {
+    const catalog = orders.catalogs.find(
+      (item) => item.supplierId === basket.supplierId,
+    );
+    const catalogItem = catalog?.items.find(
+      (item) => item.productId === suggestion.productId,
+    );
+    if (!catalog || !catalogItem) {
+      setError("This item is no longer available from the supplier.");
+      return;
+    }
+
+    const ownPendingOrder = pendingRequests.find(
+      (request) => request.isOwn && request.supplierId === basket.supplierId,
+    );
+    const packageCount = Math.max(1, countFor(basket, suggestion.productId));
+    const nextItem = {
+      ...editableCatalogItem(catalogItem),
+      packageCount,
+      requestedQuantity: packageCount * catalogItem.unitsPerPackage,
+    };
+
+    if (ownPendingOrder) {
+      setReviewItems((current) => {
+        const items =
+          current[ownPendingOrder.id] ??
+          ownPendingOrder.lines.map(editableLine);
+        const existing = items.find(
+          (item) => item.productId === suggestion.productId,
+        );
+        return {
+          ...current,
+          [ownPendingOrder.id]: existing
+            ? items.map((item) =>
+                item.productId === suggestion.productId
+                  ? {
+                      ...item,
+                      packageCount: Math.max(item.packageCount, packageCount),
+                      requestedQuantity:
+                        Math.max(item.packageCount, packageCount) *
+                        item.unitsPerPackage,
+                    }
+                  : item,
+              )
+            : [...items, nextItem],
+        };
+      });
+      setMessage(
+        `${suggestion.productName} added to your pending ${basket.supplierName} order. Save the changes when ready.`,
+      );
+      return;
+    }
+
+    setNewItems((current) => {
+      const items = newSupplierId === basket.supplierId ? current : [];
+      return items.some((item) => item.productId === suggestion.productId)
+        ? items
+        : [...items, nextItem];
+    });
+    setNewSupplierId(basket.supplierId);
+    setNewItemSelection("");
+    setIsCreatingOrder(true);
+    setMessage(
+      `${suggestion.productName} added to a new ${basket.supplierName} basket.`,
+    );
+  }
+
+  function toggleApprovedEdit(request: OrderApprovalRequest) {
+    if (editingApprovedId === request.id) {
+      setReviewItems((current) => ({
+        ...current,
+        [request.id]: request.lines.map(editableLine),
+      }));
+      setReviewNotes((current) => ({
+        ...current,
+        [request.id]: request.note ?? "",
+      }));
+      setCatalogSelections((current) => ({
+        ...current,
+        [request.id]: "",
+      }));
+      setEditingApprovedId(null);
+      return;
+    }
+    setEditingApprovedId(request.id);
   }
 
   async function requestApproval(basket: SupplierBasket) {
@@ -347,8 +469,9 @@ export function OrdersShell({
     setMessage(
       action === "approve"
         ? `${request.supplierName} order approved and ready to copy.`
-        : `${request.supplierName} order saved.`,
+        : `${request.supplierName} order saved${request.status === "APPROVED" ? " and remains approved" : ""}.`,
     );
+    if (request.status === "APPROVED") setEditingApprovedId(null);
     router.refresh();
   }
 
@@ -542,7 +665,7 @@ export function OrdersShell({
                         />
                       </label>
                       <label>
-                        <span>Amount ({item.unit})</span>
+                        <span>Total quantity ({unitLabel(item.unit)})</span>
                         <input
                           min="0.001"
                           onChange={(event) =>
@@ -559,12 +682,12 @@ export function OrdersShell({
                         />
                       </label>
                       <div className="approval-line-total">
-                        <strong>
-                          {quantity(item.requestedQuantity)} {item.unit}
-                        </strong>
+                        <strong>{item.packageCount} packages</strong>
                         <small>
+                          {quantity(item.requestedQuantity)}{" "}
+                          {unitLabel(item.unit)} ·{" "}
                           {item.latestPackagePrice === null
-                            ? "Price unavailable"
+                            ? "price unavailable"
                             : displayMoney(
                                 item.latestPackagePrice * item.packageCount,
                                 newOrderCatalog?.currency,
@@ -604,6 +727,15 @@ export function OrdersShell({
                     value={newOrderNote}
                   />
                 </label>
+                <div className="order-total">
+                  <small>Estimated total</small>
+                  <strong>
+                    {estimatedTotal(
+                      newItems,
+                      newOrderCatalog?.currency ?? orders.currency,
+                    )}
+                  </strong>
+                </div>
                 <Button
                   disabled={!newItems.length || busyKey === "create-order"}
                   onClick={createOrder}
@@ -758,8 +890,8 @@ export function OrdersShell({
                               {line.supplierSku
                                 ? `SKU ${line.supplierSku}`
                                 : "No supplier SKU"}{" "}
-                              · {quantity(line.unitsPerPackage)} {line.unit} per
-                              package
+                              · package size {quantity(line.unitsPerPackage)}{" "}
+                              {unitLabel(line.unit)}
                             </small>
                           </div>
                           <label>
@@ -783,7 +915,7 @@ export function OrdersShell({
                             />
                           </label>
                           <label>
-                            <span>Amount ({line.unit})</span>
+                            <span>Total quantity ({unitLabel(line.unit)})</span>
                             <input
                               min="0.001"
                               onChange={(event) =>
@@ -800,12 +932,12 @@ export function OrdersShell({
                             />
                           </label>
                           <div className="approval-line-total">
-                            <strong>
-                              {quantity(line.requestedQuantity)} {line.unit}
-                            </strong>
+                            <strong>{line.packageCount} packages</strong>
                             <small>
+                              {quantity(line.requestedQuantity)}{" "}
+                              {unitLabel(line.unit)} ·{" "}
                               {line.latestPackagePrice === null
-                                ? "Price unavailable"
+                                ? "price unavailable"
                                 : displayMoney(
                                     line.packageCount * line.latestPackagePrice,
                                     request.currency,
@@ -832,10 +964,10 @@ export function OrdersShell({
                     )}
                   </div>
                   <footer className="order-crud-footer">
-                    <small>
-                      Add, remove, or update packages and amounts before
-                      approval.
-                    </small>
+                    <div className="order-footer-summary">
+                      <small>Estimated order total</small>
+                      <strong>{estimatedTotal(items, request.currency)}</strong>
+                    </div>
                     <div className="order-crud-actions">
                       <Button
                         disabled={busyKey === `delete:${request.id}`}
@@ -896,48 +1028,236 @@ export function OrdersShell({
               </div>
             </div>
             <div className="approved-order-grid">
-              {approvedRequests.map((request) => (
-                <article className="approved-order-card" key={request.id}>
-                  <header>
-                    <div>
-                      <CheckCircle2 />
-                      <span>
-                        <strong>{request.supplierName}</strong>
-                        <small>
-                          Approved{" "}
-                          {request.reviewedAt
-                            ? requestDate(request.reviewedAt)
-                            : "recently"}
-                        </small>
-                      </span>
-                    </div>
-                    <div className="approved-order-actions">
-                      {canReview ? (
+              {approvedRequests.map((request) => {
+                const items =
+                  reviewItems[request.id] ?? request.lines.map(editableLine);
+                const isEditing = editingApprovedId === request.id;
+                const availableItems = request.availableItems.filter(
+                  (item) =>
+                    !items.some(
+                      (current) => current.productId === item.productId,
+                    ),
+                );
+                return (
+                  <article className="approved-order-card" key={request.id}>
+                    <header>
+                      <div>
+                        <CheckCircle2 />
+                        <span>
+                          <strong>{request.supplierName}</strong>
+                          <small>
+                            Approved{" "}
+                            {request.reviewedAt
+                              ? requestDate(request.reviewedAt)
+                              : "recently"}
+                          </small>
+                        </span>
+                      </div>
+                      <div className="approved-order-total">
+                        <small>Estimated total</small>
+                        <strong>
+                          {estimatedTotal(items, request.currency)}
+                        </strong>
+                      </div>
+                      <div className="approved-order-actions">
+                        {canReview ? (
+                          <Button
+                            onClick={() => toggleApprovedEdit(request)}
+                            size="sm"
+                            type="button"
+                            variant="outline"
+                          >
+                            <Pencil />{" "}
+                            {isEditing ? "Cancel edit" : "Edit order"}
+                          </Button>
+                        ) : null}
+                        {canReview ? (
+                          <Button
+                            aria-label={`Delete ${request.supplierName} order`}
+                            disabled={busyKey === `delete:${request.id}`}
+                            onClick={() => deleteRequest(request)}
+                            size="icon"
+                            type="button"
+                            variant="ghost"
+                          >
+                            <Trash2 />
+                          </Button>
+                        ) : null}
                         <Button
-                          aria-label={`Delete ${request.supplierName} order`}
-                          disabled={busyKey === `delete:${request.id}`}
-                          onClick={() => deleteRequest(request)}
-                          size="icon"
+                          onClick={() => copyRequest(request)}
+                          size="sm"
                           type="button"
-                          variant="ghost"
+                          variant="outline"
                         >
-                          <Trash2 />
+                          <Clipboard />{" "}
+                          {copiedId === request.id ? "Copied" : "Copy list"}
                         </Button>
-                      ) : null}
-                      <Button
-                        onClick={() => copyRequest(request)}
-                        size="sm"
-                        type="button"
-                        variant="outline"
-                      >
-                        <Clipboard />{" "}
-                        {copiedId === request.id ? "Copied" : "Copy list"}
-                      </Button>
-                    </div>
-                  </header>
-                  <pre>{approvedList(request)}</pre>
-                </article>
-              ))}
+                      </div>
+                    </header>
+                    {isEditing ? (
+                      <div className="approved-order-editor">
+                        <label className="approval-edit-note">
+                          <span>Order note</span>
+                          <textarea
+                            maxLength={500}
+                            onChange={(event) =>
+                              setReviewNotes((current) => ({
+                                ...current,
+                                [request.id]: event.target.value,
+                              }))
+                            }
+                            placeholder="Optional note"
+                            value={reviewNotes[request.id] ?? ""}
+                          />
+                        </label>
+                        <div className="approval-add-item">
+                          <label>
+                            <span>Add another supplier item</span>
+                            <select
+                              onChange={(event) =>
+                                setCatalogSelections((current) => ({
+                                  ...current,
+                                  [request.id]: event.target.value,
+                                }))
+                              }
+                              value={catalogSelections[request.id] ?? ""}
+                            >
+                              <option value="">Choose an item…</option>
+                              {availableItems.map((item) => (
+                                <option
+                                  key={item.productId}
+                                  value={item.productId}
+                                >
+                                  {item.productName}
+                                </option>
+                              ))}
+                            </select>
+                          </label>
+                          <Button
+                            disabled={!catalogSelections[request.id]}
+                            onClick={() => addReviewItem(request)}
+                            type="button"
+                            variant="outline"
+                          >
+                            <Plus /> Add item
+                          </Button>
+                        </div>
+                        <div className="approval-lines">
+                          {items.map((line) => (
+                            <div className="approval-line" key={line.productId}>
+                              <div>
+                                <strong>{line.productName}</strong>
+                                <small>
+                                  Package size {quantity(line.unitsPerPackage)}{" "}
+                                  {unitLabel(line.unit)}
+                                </small>
+                              </div>
+                              <label>
+                                <span>Packages</span>
+                                <input
+                                  min="1"
+                                  onChange={(event) => {
+                                    const packageCount = Math.max(
+                                      1,
+                                      Math.round(
+                                        Number(event.target.value) || 1,
+                                      ),
+                                    );
+                                    updateReviewItem(
+                                      request.id,
+                                      line.productId,
+                                      {
+                                        packageCount,
+                                        requestedQuantity:
+                                          packageCount * line.unitsPerPackage,
+                                      },
+                                    );
+                                  }}
+                                  step="1"
+                                  type="number"
+                                  value={line.packageCount}
+                                />
+                              </label>
+                              <label>
+                                <span>
+                                  Total quantity ({unitLabel(line.unit)})
+                                </span>
+                                <input
+                                  min="0.001"
+                                  onChange={(event) =>
+                                    updateReviewItem(
+                                      request.id,
+                                      line.productId,
+                                      {
+                                        requestedQuantity: Math.max(
+                                          0.001,
+                                          Number(event.target.value) || 0.001,
+                                        ),
+                                      },
+                                    )
+                                  }
+                                  step="0.001"
+                                  type="number"
+                                  value={line.requestedQuantity}
+                                />
+                              </label>
+                              <div className="approval-line-total">
+                                <strong>
+                                  {quantity(line.packageCount)} packages
+                                </strong>
+                                <small>
+                                  {line.latestPackagePrice === null
+                                    ? "Price unavailable"
+                                    : displayMoney(
+                                        line.packageCount *
+                                          line.latestPackagePrice,
+                                        request.currency,
+                                      )}
+                                </small>
+                              </div>
+                              <Button
+                                aria-label={`Remove ${line.productName}`}
+                                onClick={() =>
+                                  removeReviewItem(request.id, line.productId)
+                                }
+                                size="icon"
+                                type="button"
+                                variant="ghost"
+                              >
+                                <Trash2 />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                        <footer className="approved-edit-footer">
+                          <div className="order-total">
+                            <small>Updated estimated total</small>
+                            <strong>
+                              {estimatedTotal(items, request.currency)}
+                            </strong>
+                          </div>
+                          <Button
+                            disabled={
+                              !items.length || busyKey === `save:${request.id}`
+                            }
+                            onClick={() => mutateRequest(request, "save")}
+                            type="button"
+                          >
+                            {busyKey === `save:${request.id}` ? (
+                              <LoaderCircle className="spin" />
+                            ) : (
+                              <Save />
+                            )}{" "}
+                            Save approved order
+                          </Button>
+                        </footer>
+                      </div>
+                    ) : (
+                      <pre>{approvedList(request)}</pre>
+                    )}
+                  </article>
+                );
+              })}
             </div>
           </section>
         ) : null}
@@ -989,8 +1309,9 @@ export function OrdersShell({
                           <th>Item</th>
                           <th>On hand</th>
                           <th>Minimum</th>
-                          <th>Order</th>
+                          <th>Suggested quantity</th>
                           <th>Packages</th>
+                          <th>Basket</th>
                           <th>Estimated cost</th>
                         </tr>
                       </thead>
@@ -1010,17 +1331,19 @@ export function OrdersShell({
                                 </small>
                               </td>
                               <td data-label="On hand">
-                                {quantity(item.currentQuantity)} {item.unit}
+                                {quantity(item.currentQuantity)}{" "}
+                                {unitLabel(item.unit)}
                               </td>
                               <td data-label="Minimum">
-                                {quantity(item.minimumQuantity)} {item.unit}
+                                {quantity(item.minimumQuantity)}{" "}
+                                {unitLabel(item.unit)}
                               </td>
-                              <td data-label="Order">
+                              <td data-label="Suggested quantity">
                                 {quantity(packages * item.unitsPerPackage)}{" "}
-                                {item.unit}
+                                {unitLabel(item.unit)}
                                 <small>
                                   shortage {quantity(item.shortageQuantity)}{" "}
-                                  {item.unit}
+                                  {unitLabel(item.unit)}
                                 </small>
                               </td>
                               <td data-label="Packages">
@@ -1046,9 +1369,21 @@ export function OrdersShell({
                                   />
                                   <small>
                                     × {quantity(item.unitsPerPackage)}{" "}
-                                    {item.unit}
+                                    {unitLabel(item.unit)} per package
                                   </small>
                                 </label>
+                              </td>
+                              <td data-label="Basket">
+                                <Button
+                                  onClick={() =>
+                                    addSuggestionToBasket(basket, item)
+                                  }
+                                  size="sm"
+                                  type="button"
+                                  variant="outline"
+                                >
+                                  <ShoppingCart /> Add to basket
+                                </Button>
                               </td>
                               <td data-label="Estimated cost">
                                 {item.latestPackagePrice === null

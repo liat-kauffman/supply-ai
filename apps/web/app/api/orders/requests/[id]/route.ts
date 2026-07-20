@@ -48,7 +48,11 @@ export async function PATCH(
       );
     const { id } = await context.params;
     const basket = await prisma.orderBasketRequest.findFirst({
-      where: { id, businessId: organizationId, status: "PENDING" },
+      where: {
+        id,
+        businessId: organizationId,
+        status: { in: ["PENDING", "APPROVED"] },
+      },
       include: {
         supplier: {
           include: {
@@ -79,11 +83,14 @@ export async function PATCH(
     });
     if (!basket)
       return NextResponse.json(
-        { error: "The pending basket was not found" },
+        { error: "The editable order was not found" },
         { status: 404 },
       );
     const canReview = role === "owner" || role === "manager";
-    if (!canReview && basket.requestedById !== userId)
+    if (
+      !canReview &&
+      (basket.requestedById !== userId || basket.status !== "PENDING")
+    )
       return NextResponse.json(
         { error: "You can only edit your own pending orders" },
         { status: 403 },
@@ -92,6 +99,11 @@ export async function PATCH(
       return NextResponse.json(
         { error: "A manager must approve this order" },
         { status: 403 },
+      );
+    if (parsed.data.action === "approve" && basket.status !== "PENDING")
+      return NextResponse.json(
+        { error: "This order is already approved" },
+        { status: 409 },
       );
 
     const products = new Map(
@@ -142,16 +154,19 @@ export async function PATCH(
           ...(parsed.data.note === undefined
             ? {}
             : { note: displayText(parsed.data.note, "") || null }),
-          status: isApproval ? "APPROVED" : "PENDING",
-          reviewedById: isApproval ? userId : null,
-          reviewedAt,
+          status: isApproval ? "APPROVED" : basket.status,
+          ...(isApproval ? { reviewedById: userId, reviewedAt } : {}),
         },
       });
       await tx.auditEvent.create({
         data: {
           businessId: organizationId,
           actorId: userId,
-          action: isApproval ? "order.basket.approved" : "order.basket.updated",
+          action: isApproval
+            ? "order.basket.approved"
+            : basket.status === "APPROVED"
+              ? "order.basket.updated_after_approval"
+              : "order.basket.updated",
           entityType: "OrderBasketRequest",
           entityId: basket.id,
           metadata: {
