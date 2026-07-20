@@ -195,8 +195,11 @@ export async function getDashboardData(
     }),
   ]);
 
-  const timeZone = profile?.timezone ?? "Asia/Jerusalem";
-  const currency = profile?.currency ?? receipts[0]?.currency ?? "ILS";
+  const timeZone = displayText(profile?.timezone, "Asia/Jerusalem");
+  const currency = displayText(
+    profile?.currency ?? receipts[0]?.currency,
+    "ILS",
+  ).toUpperCase();
   const todayIndex = getWeekdayIndex(now, timeZone);
 
   const stockItems = products
@@ -339,9 +342,10 @@ export async function getDashboardData(
 
   const tasks: DashboardData["tasks"] = [];
   for (const receipt of pendingReceipts.slice(0, 2)) {
+    const supplierName = displayText(receipt.supplier.name, "Supplier");
     tasks.push({
-      title: `Review ${receipt.supplier.name} receipt`,
-      detail: `${receipt.lines.length} lines · ${Math.round(Number(receipt.confidence ?? 0) * 100)}% AI confidence`,
+      title: `Review ${supplierName} receipt`,
+      detail: `${receipt.lines.length} lines · ${Math.round(finiteNumber(receipt.confidence) * 100)}% AI confidence`,
       tag: "Approval",
       icon: "receipt",
       tone: "amber",
@@ -359,6 +363,9 @@ export async function getDashboardData(
 
   const rankedSuppliers = suppliers
     .map((supplier) => {
+      const supplierName = displayText(supplier.name, "Supplier");
+      const supplierCurrency = displayText(supplier.currency, currency);
+      const supplierCutoffTime = displayText(supplier.cutoffTime, "") || null;
       const offset = daysUntilOrder(supplier.orderDays, todayIndex);
       const basketValue = supplier.products.reduce((total, supplierProduct) => {
         const quantity = currentQuantity(supplierProduct.product.movements);
@@ -381,6 +388,9 @@ export async function getDashboardData(
       );
       return {
         ...supplier,
+        name: supplierName,
+        currency: supplierCurrency,
+        cutoffTime: supplierCutoffTime,
         orderOffset: offset,
         basketValue,
         minimumValue,

@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { displayText, finiteNumber } from "@/lib/display";
 import { SectionHeading } from "./section-heading";
 import type { StockItem } from "./types";
 
@@ -24,19 +25,19 @@ export function StockHealthCard({ items }: { items: StockItem[] }) {
         {items.map((item) => (
           <div className="stock-row" key={item.name}>
             <div>
-              <strong>{item.name}</strong>
-              <span>{item.meta}</span>
+              <strong>{displayText(item.name, "Item")}</strong>
+              <span>{displayText(item.meta, "No stock details")}</span>
             </div>
             <Progress
               className="bar"
               indicatorClassName={item.tone}
-              value={item.value}
+              value={finiteNumber(item.value)}
             />
             <Badge
               className={`status ${item.tone}`}
               variant={item.tone === "danger" ? "destructive" : "secondary"}
             >
-              {item.status}
+              {displayText(item.status, "Unknown")}
             </Badge>
           </div>
         ))}

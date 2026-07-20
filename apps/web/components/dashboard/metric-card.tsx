@@ -1,4 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
+import { displayText } from "@/lib/display";
 import type { Metric } from "./types";
 
 export function MetricCard({ metric }: { metric: Metric }) {
@@ -11,6 +12,7 @@ export function MetricCard({ metric }: { metric: Metric }) {
     emphasis,
     trend,
   } = metric;
+  const safeEmphasis = displayText(emphasis, "");
   return (
     <Card className="metric-card">
       <CardContent>
@@ -18,12 +20,12 @@ export function MetricCard({ metric }: { metric: Metric }) {
           <MetricIcon />
         </div>
         <div>
-          <span>{label}</span>
-          <strong>{value}</strong>
+          <span>{displayText(label, "Metric")}</span>
+          <strong>{displayText(value)}</strong>
           <small className={trend ? `trend ${trend}` : undefined}>
-            {emphasis ? <b>{emphasis}</b> : null}
-            {emphasis ? " " : null}
-            {detail}
+            {safeEmphasis ? <b>{safeEmphasis}</b> : null}
+            {safeEmphasis ? " " : null}
+            {displayText(detail, "No details available")}
           </small>
         </div>
       </CardContent>

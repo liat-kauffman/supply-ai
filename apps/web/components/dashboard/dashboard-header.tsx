@@ -1,5 +1,6 @@
 import { Bell, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { displayText, finiteNumber } from "@/lib/display";
 
 interface DashboardHeaderProps {
   eyebrow: string;
@@ -23,16 +24,16 @@ export function DashboardHeader({
   return (
     <header>
       <div>
-        <p className="eyebrow">{eyebrow}</p>
-        <h1>{title}</h1>
-        <p className="subtitle">{subtitle}</p>
+        <p className="eyebrow">{displayText(eyebrow, "TODAY")}</p>
+        <h1>{displayText(title, "Today")}</h1>
+        <p className="subtitle">{displayText(subtitle, "Daily overview")}</p>
       </div>
       <div className="header-actions">
         <Button
           className="icon-button"
           size="icon"
           variant="outline"
-          aria-label={`${notificationCount} notifications`}
+          aria-label={`${finiteNumber(notificationCount)} notifications`}
           onClick={onNotificationsClick}
         >
           <Bell />
@@ -40,7 +41,9 @@ export function DashboardHeader({
         </Button>
         <Button className="primary" onClick={onAction}>
           <Plus />
-          <span className="action-copy">{actionLabel}</span>
+          <span className="action-copy">
+            {displayText(actionLabel, "Add update")}
+          </span>
         </Button>
       </div>
     </header>

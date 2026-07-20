@@ -2,6 +2,7 @@ import { ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { displayText } from "@/lib/display";
 import { SectionHeading } from "./section-heading";
 import type { AttentionTask } from "./types";
 
@@ -30,11 +31,11 @@ export function AttentionPanel({
                 <TaskIcon />
               </div>
               <div className="task-copy">
-                <strong>{title}</strong>
-                <span>{detail}</span>
+                <strong>{displayText(title, "Task")}</strong>
+                <span>{displayText(detail, "No details available")}</span>
               </div>
               <Badge className={`pill ${tone}`} variant="secondary">
-                {tag}
+                {displayText(tag, "Review")}
               </Badge>
               <Button
                 size="icon"
