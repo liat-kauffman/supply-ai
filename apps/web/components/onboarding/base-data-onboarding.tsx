@@ -28,6 +28,8 @@ interface SetupItem {
   category: string;
   supplier: string;
   supplierSku: string;
+  packageCount: string;
+  unitsPerPackage: string;
   quantity: string;
   unit: string;
   minimum: string;
@@ -58,6 +60,8 @@ interface ReceiptDraft {
     description: string;
     category: string;
     supplierSku: string;
+    packageCount: number;
+    unitsPerPackage: number;
     quantity: number;
     unit: string;
     packagePrice: number;
@@ -74,6 +78,8 @@ const newItem = (supplier = "", receiptId = ""): SetupItem => ({
   category: "",
   supplier,
   supplierSku: "",
+  packageCount: "0",
+  unitsPerPackage: "1",
   quantity: "0",
   unit: "units",
   minimum: "0",
@@ -178,6 +184,8 @@ export function BaseDataOnboarding({
               category: item.category || "Uncategorized",
               supplier,
               supplierSku: item.supplierSku,
+              packageCount: String(item.packageCount),
+              unitsPerPackage: String(item.unitsPerPackage),
               quantity: String(item.quantity),
               unit: item.unit || "units",
               minimum: "0",
@@ -246,7 +254,30 @@ export function BaseDataOnboarding({
   function updateItem(id: string, key: keyof SetupItem, value: string) {
     setItems((current) =>
       current.map((item) =>
-        item.id === id ? { ...item, [key]: value } : item,
+        item.id === id
+          ? {
+              ...item,
+              [key]: value,
+              ...(["packageCount", "unitsPerPackage"].includes(key)
+                ? {
+                    quantity: String(
+                      Number(
+                        (
+                          Number(
+                            key === "packageCount" ? value : item.packageCount,
+                          ) *
+                          Number(
+                            key === "unitsPerPackage"
+                              ? value
+                              : item.unitsPerPackage,
+                          )
+                        ).toFixed(3),
+                      ),
+                    ),
+                  }
+                : {}),
+            }
+          : item,
       ),
     );
   }
@@ -274,6 +305,10 @@ export function BaseDataOnboarding({
         !item.name.trim() ||
         !item.category.trim() ||
         !item.unit.trim() ||
+        !Number.isFinite(Number(item.packageCount)) ||
+        Number(item.packageCount) < 0 ||
+        !Number.isFinite(Number(item.unitsPerPackage)) ||
+        Number(item.unitsPerPackage) <= 0 ||
         !Number.isFinite(Number(item.quantity)) ||
         !Number.isFinite(Number(item.minimum)) ||
         !Number.isFinite(Number(item.packagePrice)),
@@ -311,6 +346,8 @@ export function BaseDataOnboarding({
             category: item.category,
             supplier: item.supplier.trim(),
             supplierSku: item.supplierSku,
+            packageCount: Number(item.packageCount),
+            unitsPerPackage: Number(item.unitsPerPackage),
             quantity: Number(item.quantity),
             unit: item.unit,
             minimum: Number(item.minimum),
@@ -728,16 +765,48 @@ export function BaseDataOnboarding({
                         />
                       </label>
                       <label>
-                        Received quantity
+                        Packages bought
                         <input
                           min="0"
-                          step="0.5"
+                          step="1"
                           type="number"
-                          value={item.quantity}
+                          value={item.packageCount}
                           onChange={(event) =>
-                            updateItem(item.id, "quantity", event.target.value)
+                            updateItem(
+                              item.id,
+                              "packageCount",
+                              event.target.value,
+                            )
                           }
                         />
+                      </label>
+                      <label>
+                        Units per package
+                        <input
+                          min="0.001"
+                          step="0.001"
+                          type="number"
+                          value={item.unitsPerPackage}
+                          onChange={(event) =>
+                            updateItem(
+                              item.id,
+                              "unitsPerPackage",
+                              event.target.value,
+                            )
+                          }
+                        />
+                      </label>
+                      <label>
+                        Total received
+                        <input
+                          aria-describedby={`received-total-${item.id}`}
+                          readOnly
+                          type="number"
+                          value={item.quantity}
+                        />
+                        <span id={`received-total-${item.id}`}>
+                          Packages × units per package
+                        </span>
                       </label>
                       <label>
                         Minimum stock

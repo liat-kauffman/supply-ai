@@ -9,6 +9,8 @@ export interface ReceiptExportRow {
   description: string;
   category: string;
   supplierSku: string;
+  packageCount: number | null;
+  unitsPerPackage: number | null;
   quantity: number;
   unit: string;
   packagePrice: number | null;
@@ -34,6 +36,8 @@ const columns: Array<{
   { label: "Description", key: "description" },
   { label: "Category", key: "category" },
   { label: "Supplier SKU", key: "supplierSku" },
+  { label: "Packages bought", key: "packageCount", type: "Number" },
+  { label: "Units per package", key: "unitsPerPackage", type: "Number" },
   { label: "Quantity", key: "quantity", type: "Number" },
   { label: "Unit", key: "unit" },
   { label: "Package price", key: "packagePrice", type: "Number" },
@@ -102,6 +106,8 @@ function summaryRow(
   currency: string,
 ) {
   return `<Row>${[
+    cell("", "String"),
+    cell("", "String"),
     cell("", "String"),
     cell("", "String"),
     cell("", "String"),

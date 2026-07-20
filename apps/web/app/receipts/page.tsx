@@ -40,6 +40,8 @@ export default async function ReceiptsPage() {
       description: displayText(line.description, "") || null,
       category: displayText(line.category, "") || null,
       supplierSku: displayText(line.supplierSku, "") || null,
+      packageCount: finiteNumberOrNull(line.packageCount),
+      unitsPerPackage: finiteNumberOrNull(line.unitsPerPackage),
       quantity: finiteNumber(line.quantity),
       unit: displayText(line.unit, "units"),
       packagePrice: finiteNumberOrNull(line.packagePrice),

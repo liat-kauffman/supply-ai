@@ -11,7 +11,9 @@ const itemSchema = z.object({
   category: z.string().trim().min(1).max(80),
   supplier: z.string().trim().min(1).max(120),
   supplierSku: z.string().trim().max(120).optional().default(""),
-  quantity: z.number().nonnegative().multipleOf(0.5),
+  packageCount: z.number().nonnegative().multipleOf(0.001),
+  unitsPerPackage: z.number().positive().multipleOf(0.001),
+  quantity: z.number().nonnegative().multipleOf(0.001),
   unit: z.string().trim().min(1).max(30),
   minimum: z.number().nonnegative().multipleOf(0.5),
   packagePrice: z.number().nonnegative().optional().default(0),
@@ -247,13 +249,14 @@ async function createBaseData(request: Request) {
         },
         update: {
           supplierSku: item.supplierSku || undefined,
+          unitsPerPackage: item.unitsPerPackage,
           latestPackagePrice: item.packagePrice || undefined,
         },
         create: {
           supplierId,
           productId: product.id,
           supplierSku: item.supplierSku || null,
-          unitsPerPackage: 1,
+          unitsPerPackage: item.unitsPerPackage,
           latestPackagePrice: item.packagePrice || null,
           isPreferred: !existingProduct,
         },
@@ -271,12 +274,14 @@ async function createBaseData(request: Request) {
             description: item.description || null,
             category: item.category,
             supplierSku: item.supplierSku || null,
+            packageCount: item.packageCount,
+            unitsPerPackage: item.unitsPerPackage,
             quantity: item.quantity,
             unit: item.unit,
             packagePrice: item.packagePrice || null,
             lineTotal:
               item.packagePrice > 0
-                ? Number((item.quantity * item.packagePrice).toFixed(2))
+                ? Number((item.packageCount * item.packagePrice).toFixed(2))
                 : null,
           },
         });

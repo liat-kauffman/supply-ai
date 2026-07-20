@@ -30,6 +30,10 @@ export async function GET() {
         description: line.description ?? "",
         category: line.category ?? "",
         supplierSku: line.supplierSku ?? "",
+        packageCount:
+          line.packageCount === null ? null : Number(line.packageCount),
+        unitsPerPackage:
+          line.unitsPerPackage === null ? null : Number(line.unitsPerPackage),
         quantity: Number(line.quantity),
         unit: line.unit,
         packagePrice:

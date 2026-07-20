@@ -44,6 +44,8 @@ export interface ReceiptHistoryItem {
     description: string | null;
     category: string | null;
     supplierSku: string | null;
+    packageCount: number | null;
+    unitsPerPackage: number | null;
     quantity: number;
     unit: string;
     packagePrice: number | null;
@@ -343,8 +345,19 @@ export function ReceiptsShell({
                                 <span key={line.id}>
                                   {displayText(line.name, "Item")}
                                   <small>
-                                    {displayNumber(line.quantity)}{" "}
-                                    {displayText(line.unit, "units")}
+                                    {line.packageCount !== null &&
+                                    line.unitsPerPackage !== null ? (
+                                      <>
+                                        {displayNumber(line.packageCount)} ×{" "}
+                                        {displayNumber(line.unitsPerPackage)}{" "}
+                                        {displayText(line.unit, "units")}
+                                      </>
+                                    ) : (
+                                      <>
+                                        {displayNumber(line.quantity)}{" "}
+                                        {displayText(line.unit, "units")}
+                                      </>
+                                    )}
                                   </small>
                                 </span>
                               ))}
@@ -380,8 +393,26 @@ export function ReceiptsShell({
                                       <td>{displayText(line.category)}</td>
                                       <td>{displayText(line.supplierSku)}</td>
                                       <td>
-                                        {displayNumber(line.quantity)}{" "}
-                                        {displayText(line.unit, "units")}
+                                        {line.packageCount !== null &&
+                                        line.unitsPerPackage !== null ? (
+                                          <>
+                                            {displayNumber(line.packageCount)}{" "}
+                                            packages ×{" "}
+                                            {displayNumber(
+                                              line.unitsPerPackage,
+                                            )}{" "}
+                                            {displayText(line.unit, "units")}
+                                            <small className="receipt-line-description">
+                                              {displayNumber(line.quantity)}{" "}
+                                              total
+                                            </small>
+                                          </>
+                                        ) : (
+                                          <>
+                                            {displayNumber(line.quantity)}{" "}
+                                            {displayText(line.unit, "units")}
+                                          </>
+                                        )}
                                       </td>
                                       <td>
                                         {line.packagePrice === null

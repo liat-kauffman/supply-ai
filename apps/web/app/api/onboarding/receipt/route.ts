@@ -21,6 +21,8 @@ const receiptDraftSchema = z.object({
         description: z.string().catch(""),
         category: z.string().catch("Uncategorized"),
         supplierSku: z.string().catch(""),
+        packageCount: z.coerce.number().nonnegative().catch(0),
+        unitsPerPackage: z.coerce.number().positive().catch(1),
         quantity: z.coerce.number().nonnegative().catch(0),
         unit: z.string().catch("units"),
         packagePrice: z.coerce.number().nonnegative().catch(0),
@@ -102,7 +104,7 @@ export async function POST(request: Request) {
                 },
               },
               {
-                text: "Extract this supplier receipt for initial inventory setup. Return the supplier name, receipt date, invoice number, receipt VAT amount if shown, the full receipt total if shown, and every purchased line item. For each line infer a short inventory name, useful description, broad category, supplier SKU if printed, purchased quantity, practical unit such as units, cartons, kg, or bottles, and the price for one purchased package or unit (not the full line total). Do not invent unreadable values; use an empty SKU or zero price when unknown. Keep partial rows and explain uncertainty in warnings. This is an editable draft that a manager will approve.",
+                text: "Extract this supplier receipt for initial inventory setup. Return the supplier name, receipt date, invoice number, receipt VAT amount if shown, the full receipt total if shown, and every purchased line item. Packaging is important: packageCount is how many packages were bought, unitsPerPackage is the fixed number of base units inside one supplier package, and quantity is the total base units received (packageCount multiplied by unitsPerPackage). For example, 3 cartons of 12 bottles means packageCount 3, unitsPerPackage 12, quantity 36, and unit bottles. Packaging printed as 6x2, 12 units, case of 24, or similar describes unitsPerPackage and should not be folded into the item name. When no package structure is printed, use unitsPerPackage 1 and packageCount equal to quantity. For each line infer a short inventory name, useful description, broad category, supplier SKU if printed, practical base unit such as units, kg, or bottles, and the price for one package (not the full line total). Do not invent unreadable values; use an empty SKU or zero price when unknown. Keep partial rows and explain uncertainty in warnings. This is an editable draft that a manager will approve.",
               },
             ],
           },
@@ -128,6 +130,8 @@ export async function POST(request: Request) {
                     description: { type: "STRING" },
                     category: { type: "STRING" },
                     supplierSku: { type: "STRING" },
+                    packageCount: { type: "NUMBER" },
+                    unitsPerPackage: { type: "NUMBER" },
                     quantity: { type: "NUMBER" },
                     unit: { type: "STRING" },
                     packagePrice: { type: "NUMBER" },
@@ -137,6 +141,8 @@ export async function POST(request: Request) {
                     "description",
                     "category",
                     "supplierSku",
+                    "packageCount",
+                    "unitsPerPackage",
                     "quantity",
                     "unit",
                     "packagePrice",
@@ -195,7 +201,14 @@ export async function POST(request: Request) {
           category: displayText(item.category, "Uncategorized"),
           supplierSku: displayText(item.supplierSku, ""),
           unit: displayText(item.unit, "units"),
-          quantity: Math.round(item.quantity * 2) / 2,
+          packageCount: Math.round(item.packageCount * 1000) / 1000,
+          unitsPerPackage: Math.round(item.unitsPerPackage * 1000) / 1000,
+          quantity:
+            Math.round(
+              (item.packageCount > 0
+                ? item.packageCount * item.unitsPerPackage
+                : item.quantity) * 1000,
+            ) / 1000,
         })),
       });
     } catch {
