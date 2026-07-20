@@ -14,6 +14,7 @@ import {
   ShoppingBag,
   Trash2,
   UserCheck,
+  X,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -1062,13 +1063,18 @@ export function OrdersShell({
                       <div className="approved-order-actions">
                         {canReview ? (
                           <Button
+                            aria-label={
+                              isEditing
+                                ? `Cancel editing ${request.supplierName} order`
+                                : `Edit ${request.supplierName} order`
+                            }
                             onClick={() => toggleApprovedEdit(request)}
-                            size="sm"
+                            size="icon"
+                            title={isEditing ? "Cancel editing" : "Edit order"}
                             type="button"
                             variant="outline"
                           >
-                            <Pencil />{" "}
-                            {isEditing ? "Cancel edit" : "Edit order"}
+                            {isEditing ? <X /> : <Pencil />}
                           </Button>
                         ) : null}
                         {canReview ? (
@@ -1077,6 +1083,7 @@ export function OrdersShell({
                             disabled={busyKey === `delete:${request.id}`}
                             onClick={() => deleteRequest(request)}
                             size="icon"
+                            title="Delete order"
                             type="button"
                             variant="ghost"
                           >
@@ -1084,13 +1091,24 @@ export function OrdersShell({
                           </Button>
                         ) : null}
                         <Button
+                          aria-label={
+                            copiedId === request.id
+                              ? `${request.supplierName} order copied`
+                              : `Copy ${request.supplierName} order`
+                          }
                           onClick={() => copyRequest(request)}
-                          size="sm"
+                          size="icon"
+                          title={
+                            copiedId === request.id ? "Copied" : "Copy order"
+                          }
                           type="button"
                           variant="outline"
                         >
-                          <Clipboard />{" "}
-                          {copiedId === request.id ? "Copied" : "Copy list"}
+                          {copiedId === request.id ? (
+                            <CheckCircle2 />
+                          ) : (
+                            <Clipboard />
+                          )}
                         </Button>
                       </div>
                     </header>
