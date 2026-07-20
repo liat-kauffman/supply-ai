@@ -4,12 +4,10 @@ import {
   AlertTriangle,
   CheckCircle2,
   Clipboard,
-  Eye,
   LoaderCircle,
   PackageOpen,
   Plus,
   Send,
-  ShieldCheck,
   ShoppingBag,
   Trash2,
   UserCheck,
@@ -110,13 +108,8 @@ export function OrdersShell({
   userName: string;
 }) {
   const router = useRouter();
-  const actualCanReview = currentRole === "owner" || currentRole === "manager";
-  const [viewMode, setViewMode] = useState<"manager" | "employee">(
-    actualCanReview ? "manager" : "employee",
-  );
-  const canReview = actualCanReview && viewMode === "manager";
-  const isEmployeeView = !actualCanReview || viewMode === "employee";
-  const isEmployeePreview = actualCanReview && viewMode === "employee";
+  const canReview = currentRole === "owner" || currentRole === "manager";
+  const isEmployee = currentRole === "employee";
   const pendingRequests = approvalRequests.filter(
     (request) => request.status === "PENDING",
   );
@@ -210,7 +203,6 @@ export function OrdersShell({
   }
 
   async function requestApproval(basket: SupplierBasket) {
-    if (isEmployeePreview) return;
     setBusyKey(`request:${basket.supplierId}`);
     setError(null);
     setMessage(null);
@@ -312,40 +304,6 @@ export function OrdersShell({
           </Button>
         </header>
 
-        {actualCanReview ? (
-          <div className="orders-view-switcher">
-            <div>
-              <strong>View order page as</strong>
-              <small>
-                Preview the employee experience without changing roles.
-              </small>
-            </div>
-            <div role="group" aria-label="Order page role preview">
-              <button
-                className={viewMode === "manager" ? "active" : undefined}
-                onClick={() => setViewMode("manager")}
-                type="button"
-              >
-                <ShieldCheck /> Manager
-              </button>
-              <button
-                className={viewMode === "employee" ? "active" : undefined}
-                onClick={() => setViewMode("employee")}
-                type="button"
-              >
-                <Eye /> Employee preview
-              </button>
-            </div>
-          </div>
-        ) : null}
-
-        {isEmployeePreview ? (
-          <p className="employee-preview-banner">
-            <Eye /> Employee preview is on. Approval requests are disabled in
-            preview mode.
-          </p>
-        ) : null}
-
         {message ? <p className="orders-feedback success">{message}</p> : null}
         {error ? (
           <p className="orders-feedback error" role="alert">
@@ -377,9 +335,7 @@ export function OrdersShell({
               <AlertTriangle />
             </span>
             <div>
-              <strong>
-                {displayNumber(isEmployeePreview ? 0 : pendingRequests.length)}
-              </strong>
+              <strong>{displayNumber(pendingRequests.length)}</strong>
               <small>waiting for approval</small>
             </div>
           </article>
@@ -574,7 +530,7 @@ export function OrdersShell({
           </section>
         ) : null}
 
-        {isEmployeeView && !isEmployeePreview && pendingRequests.length ? (
+        {isEmployee && pendingRequests.length ? (
           <section className="employee-request-status">
             <div className="orders-section-heading">
               <div>
@@ -600,7 +556,7 @@ export function OrdersShell({
           </section>
         ) : null}
 
-        {!isEmployeePreview && approvedRequests.length ? (
+        {approvedRequests.length ? (
           <section
             className="approved-orders"
             aria-labelledby="approved-heading"
@@ -766,7 +722,7 @@ export function OrdersShell({
                       </tbody>
                     </table>
                   </div>
-                  {isEmployeeView ? (
+                  {isEmployee ? (
                     <footer className="basket-request-footer">
                       <label>
                         <span>
@@ -786,7 +742,6 @@ export function OrdersShell({
                       </label>
                       <Button
                         disabled={
-                          isEmployeePreview ||
                           hasPending ||
                           busyKey === `request:${basket.supplierId}`
                         }
@@ -798,11 +753,9 @@ export function OrdersShell({
                         ) : (
                           <Send />
                         )}{" "}
-                        {isEmployeePreview
-                          ? "Preview: ask manager for approval"
-                          : hasPending
-                            ? "Waiting for manager"
-                            : "Ask manager for approval"}
+                        {hasPending
+                          ? "Waiting for manager"
+                          : "Ask manager for approval"}
                       </Button>
                     </footer>
                   ) : null}

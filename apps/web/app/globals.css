@@ -2463,69 +2463,6 @@ footer a {
   color: #9e493e;
   background: #fae9e5;
 }
-.orders-view-switcher {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 14px;
-  border: 1px solid #dce5df;
-  border-radius: 14px;
-  background: #fbfcfa;
-}
-.orders-view-switcher > div:first-child {
-  display: grid;
-  gap: 2px;
-}
-.orders-view-switcher strong {
-  color: #30483f;
-  font-size: 10px;
-}
-.orders-view-switcher small {
-  color: #7b8781;
-  font-size: 8px;
-}
-.orders-view-switcher > div:last-child {
-  display: flex;
-  gap: 5px;
-  padding: 4px;
-  border-radius: 10px;
-  background: #eef2ef;
-}
-.orders-view-switcher button {
-  height: 32px;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 8px;
-  color: #748078;
-  background: transparent;
-  font-size: 9px;
-  font-weight: 750;
-}
-.orders-view-switcher button.active {
-  color: #294d40;
-  background: #fff;
-  box-shadow: 0 1px 4px #23382f14;
-}
-.orders-view-switcher button svg,
-.employee-preview-banner svg {
-  width: 14px;
-}
-.employee-preview-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0;
-  padding: 10px 13px;
-  border-radius: 10px;
-  color: #6f5a2f;
-  background: #fff4dc;
-  font-size: 9px;
-  font-weight: 700;
-}
 .approval-workspace,
 .approved-orders,
 .employee-request-status {
@@ -3425,17 +3362,6 @@ footer a {
   .approval-card > footer .inline-flex,
   .basket-request-footer .inline-flex {
     width: 100%;
-  }
-  .orders-view-switcher {
-    align-items: stretch;
-    flex-direction: column;
-  }
-  .orders-view-switcher > div:last-child,
-  .orders-view-switcher button {
-    flex: 1;
-  }
-  .orders-view-switcher button {
-    justify-content: center;
   }
   .orders-summary {
     display: flex;
