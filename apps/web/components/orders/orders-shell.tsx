@@ -7,6 +7,7 @@ import {
   LoaderCircle,
   PackageOpen,
   Plus,
+  Save,
   Send,
   ShoppingBag,
   Trash2,
@@ -26,6 +27,7 @@ import type {
   OrderApprovalCatalogItem,
   OrderApprovalLine,
   OrderApprovalRequest,
+  OrderCatalog,
   OrdersData,
   SupplierBasket,
 } from "@/lib/orders";
@@ -140,6 +142,18 @@ export function OrdersShell({
     Record<string, string>
   >({});
   const [notes, setNotes] = useState<Record<string, string>>({});
+  const [reviewNotes, setReviewNotes] = useState<Record<string, string>>(() =>
+    Object.fromEntries(
+      pendingRequests.map((request) => [request.id, request.note ?? ""]),
+    ),
+  );
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [newSupplierId, setNewSupplierId] = useState(
+    orders.catalogs[0]?.supplierId ?? "",
+  );
+  const [newItems, setNewItems] = useState<EditableReviewItem[]>([]);
+  const [newItemSelection, setNewItemSelection] = useState("");
+  const [newOrderNote, setNewOrderNote] = useState("");
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -161,7 +175,19 @@ export function OrdersShell({
       }
       return next;
     });
+    setReviewNotes((current) => ({
+      ...Object.fromEntries(
+        approvalRequests
+          .filter((request) => request.status === "PENDING")
+          .map((request) => [request.id, request.note ?? ""]),
+      ),
+      ...current,
+    }));
   }, [approvalRequests]);
+
+  const newOrderCatalog = orders.catalogs.find(
+    (catalog) => catalog.supplierId === newSupplierId,
+  );
 
   function countFor(basket: SupplierBasket, productId: string) {
     return basketCounts[`${basket.supplierId}:${productId}`] ?? 0;
@@ -202,6 +228,32 @@ export function OrdersShell({
     setCatalogSelections((current) => ({ ...current, [request.id]: "" }));
   }
 
+  function chooseNewSupplier(supplierId: string) {
+    setNewSupplierId(supplierId);
+    setNewItems([]);
+    setNewItemSelection("");
+  }
+
+  function addNewOrderItem(catalog: OrderCatalog) {
+    const item = catalog.items.find(
+      (candidate) => candidate.productId === newItemSelection,
+    );
+    if (!item) return;
+    setNewItems((current) => [...current, editableCatalogItem(item)]);
+    setNewItemSelection("");
+  }
+
+  function updateNewOrderItem(
+    productId: string,
+    update: Partial<EditableReviewItem>,
+  ) {
+    setNewItems((current) =>
+      current.map((item) =>
+        item.productId === productId ? { ...item, ...update } : item,
+      ),
+    );
+  }
+
   async function requestApproval(basket: SupplierBasket) {
     setBusyKey(`request:${basket.supplierId}`);
     setError(null);
@@ -230,14 +282,53 @@ export function OrdersShell({
     router.refresh();
   }
 
-  async function approveRequest(request: OrderApprovalRequest) {
-    setBusyKey(`approve:${request.id}`);
+  async function createOrder() {
+    if (!newOrderCatalog || !newItems.length) return;
+    setBusyKey("create-order");
+    setError(null);
+    setMessage(null);
+    const response = await fetch("/api/orders/requests", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        supplierId: newOrderCatalog.supplierId,
+        note: newOrderNote,
+        items: newItems.map((item) => ({
+          productId: item.productId,
+          packageCount: item.packageCount,
+          requestedQuantity: item.requestedQuantity,
+        })),
+      }),
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    setBusyKey(null);
+    if (!response.ok) {
+      setError(payload?.error ?? "Unable to create order");
+      return;
+    }
+    setIsCreatingOrder(false);
+    setNewItems([]);
+    setNewItemSelection("");
+    setNewOrderNote("");
+    setMessage(`${newOrderCatalog.supplierName} order created.`);
+    router.refresh();
+  }
+
+  async function mutateRequest(
+    request: OrderApprovalRequest,
+    action: "save" | "approve",
+  ) {
+    setBusyKey(`${action}:${request.id}`);
     setError(null);
     setMessage(null);
     const response = await fetch(`/api/orders/requests/${request.id}`, {
       method: "PATCH",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
+        action,
+        note: reviewNotes[request.id] ?? "",
         items: (reviewItems[request.id] ?? []).map((item) => ({
           productId: item.productId,
           packageCount: item.packageCount,
@@ -250,10 +341,34 @@ export function OrdersShell({
     } | null;
     setBusyKey(null);
     if (!response.ok) {
-      setError(payload?.error ?? "Unable to approve basket");
+      setError(payload?.error ?? "Unable to update order");
       return;
     }
-    setMessage(`${request.supplierName} basket approved and ready to copy.`);
+    setMessage(
+      action === "approve"
+        ? `${request.supplierName} order approved and ready to copy.`
+        : `${request.supplierName} order saved.`,
+    );
+    router.refresh();
+  }
+
+  async function deleteRequest(request: OrderApprovalRequest) {
+    if (!window.confirm(`Delete the ${request.supplierName} order?`)) return;
+    setBusyKey(`delete:${request.id}`);
+    setError(null);
+    setMessage(null);
+    const response = await fetch(`/api/orders/requests/${request.id}`, {
+      method: "DELETE",
+    });
+    const payload = (await response.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    setBusyKey(null);
+    if (!response.ok) {
+      setError(payload?.error ?? "Unable to delete order");
+      return;
+    }
+    setMessage(`${request.supplierName} order deleted.`);
     router.refresh();
   }
 
@@ -299,9 +414,24 @@ export function OrdersShell({
               baskets into supplier-ready lists.
             </p>
           </div>
-          <Button asChild className="primary receipt-action-button" size="sm">
-            <Link href="/receipts/import">Import latest receipt</Link>
-          </Button>
+          <div className="orders-header-actions">
+            <Button
+              disabled={!orders.catalogs.length}
+              onClick={() => setIsCreatingOrder((current) => !current)}
+              size="sm"
+              type="button"
+            >
+              <Plus /> New order
+            </Button>
+            <Button
+              asChild
+              className="receipt-action-button"
+              size="sm"
+              variant="outline"
+            >
+              <Link href="/receipts/import">Import latest receipt</Link>
+            </Button>
+          </div>
         </header>
 
         {message ? <p className="orders-feedback success">{message}</p> : null}
@@ -309,6 +439,186 @@ export function OrdersShell({
           <p className="orders-feedback error" role="alert">
             {error}
           </p>
+        ) : null}
+
+        {isCreatingOrder ? (
+          <section className="approval-workspace create-order-workspace">
+            <div className="orders-section-heading">
+              <div>
+                <p className="eyebrow">CREATE</p>
+                <h2>New supplier order</h2>
+              </div>
+              <Button
+                onClick={() => setIsCreatingOrder(false)}
+                size="sm"
+                type="button"
+                variant="ghost"
+              >
+                Cancel
+              </Button>
+            </div>
+            <div className="approval-card">
+              <div className="approval-add-item create-order-supplier">
+                <label>
+                  <span>Supplier</span>
+                  <select
+                    onChange={(event) => chooseNewSupplier(event.target.value)}
+                    value={newSupplierId}
+                  >
+                    {orders.catalogs.map((catalog) => (
+                      <option
+                        key={catalog.supplierId}
+                        value={catalog.supplierId}
+                      >
+                        {catalog.supplierName}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  <span>Add supplier item</span>
+                  <select
+                    onChange={(event) =>
+                      setNewItemSelection(event.target.value)
+                    }
+                    value={newItemSelection}
+                  >
+                    <option value="">Choose an item…</option>
+                    {newOrderCatalog?.items
+                      .filter(
+                        (item) =>
+                          !newItems.some(
+                            (current) => current.productId === item.productId,
+                          ),
+                      )
+                      .map((item) => (
+                        <option key={item.productId} value={item.productId}>
+                          {item.productName}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <Button
+                  disabled={!newItemSelection || !newOrderCatalog}
+                  onClick={() =>
+                    newOrderCatalog && addNewOrderItem(newOrderCatalog)
+                  }
+                  type="button"
+                  variant="outline"
+                >
+                  <Plus /> Add item
+                </Button>
+              </div>
+              <div className="approval-lines">
+                {newItems.length ? (
+                  newItems.map((item) => (
+                    <div className="approval-line" key={item.productId}>
+                      <div>
+                        <strong>{item.productName}</strong>
+                        <small>
+                          {item.supplierSku
+                            ? `SKU ${item.supplierSku}`
+                            : "No supplier SKU"}
+                        </small>
+                      </div>
+                      <label>
+                        <span>Packages</span>
+                        <input
+                          min="1"
+                          onChange={(event) => {
+                            const packageCount = Math.max(
+                              1,
+                              Math.round(Number(event.target.value) || 1),
+                            );
+                            updateNewOrderItem(item.productId, {
+                              packageCount,
+                              requestedQuantity:
+                                packageCount * item.unitsPerPackage,
+                            });
+                          }}
+                          step="1"
+                          type="number"
+                          value={item.packageCount}
+                        />
+                      </label>
+                      <label>
+                        <span>Amount ({item.unit})</span>
+                        <input
+                          min="0.001"
+                          onChange={(event) =>
+                            updateNewOrderItem(item.productId, {
+                              requestedQuantity: Math.max(
+                                0.001,
+                                Number(event.target.value) || 0.001,
+                              ),
+                            })
+                          }
+                          step="0.001"
+                          type="number"
+                          value={item.requestedQuantity}
+                        />
+                      </label>
+                      <div className="approval-line-total">
+                        <strong>
+                          {quantity(item.requestedQuantity)} {item.unit}
+                        </strong>
+                        <small>
+                          {item.latestPackagePrice === null
+                            ? "Price unavailable"
+                            : displayMoney(
+                                item.latestPackagePrice * item.packageCount,
+                                newOrderCatalog?.currency,
+                              )}
+                        </small>
+                      </div>
+                      <Button
+                        aria-label={`Remove ${item.productName}`}
+                        onClick={() =>
+                          setNewItems((current) =>
+                            current.filter(
+                              (line) => line.productId !== item.productId,
+                            ),
+                          )
+                        }
+                        size="icon"
+                        type="button"
+                        variant="ghost"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  ))
+                ) : (
+                  <p className="approval-empty-lines">
+                    Add at least one item to create this order.
+                  </p>
+                )}
+              </div>
+              <footer className="create-order-footer">
+                <label>
+                  <span>Order note</span>
+                  <textarea
+                    maxLength={500}
+                    onChange={(event) => setNewOrderNote(event.target.value)}
+                    placeholder="Optional note"
+                    value={newOrderNote}
+                  />
+                </label>
+                <Button
+                  disabled={!newItems.length || busyKey === "create-order"}
+                  onClick={createOrder}
+                  type="button"
+                >
+                  {busyKey === "create-order" ? (
+                    <LoaderCircle className="spin" />
+                  ) : (
+                    <Plus />
+                  )}{" "}
+                  Create order
+                </Button>
+              </footer>
+            </div>
+          </section>
         ) : null}
 
         <section className="orders-summary" aria-label="Order summary">
@@ -352,15 +662,21 @@ export function OrdersShell({
           </article>
         </section>
 
-        {canReview && pendingRequests.length ? (
+        {pendingRequests.length ? (
           <section
             className="approval-workspace"
             aria-labelledby="approval-heading"
           >
             <div className="orders-section-heading">
               <div>
-                <p className="eyebrow">MANAGER REVIEW</p>
-                <h2 id="approval-heading">Baskets waiting for you</h2>
+                <p className="eyebrow">
+                  {canReview ? "MANAGER REVIEW" : "YOUR ORDERS"}
+                </p>
+                <h2 id="approval-heading">
+                  {canReview
+                    ? "Baskets waiting for you"
+                    : "Waiting for approval"}
+                </h2>
               </div>
               <Badge variant="outline">{pendingRequests.length} pending</Badge>
             </div>
@@ -387,11 +703,22 @@ export function OrdersShell({
                         </p>
                       </div>
                     </div>
-                    <Badge>Needs approval</Badge>
+                    <Badge>{canReview ? "Needs approval" : "Pending"}</Badge>
                   </header>
-                  {request.note ? (
-                    <p className="approval-note">“{request.note}”</p>
-                  ) : null}
+                  <label className="approval-edit-note">
+                    <span>Order note</span>
+                    <textarea
+                      maxLength={500}
+                      onChange={(event) =>
+                        setReviewNotes((current) => ({
+                          ...current,
+                          [request.id]: event.target.value,
+                        }))
+                      }
+                      placeholder="Optional note"
+                      value={reviewNotes[request.id] ?? ""}
+                    />
+                  </label>
                   <div className="approval-add-item">
                     <label>
                       <span>Add another supplier item</span>
@@ -504,55 +831,56 @@ export function OrdersShell({
                       </p>
                     )}
                   </div>
-                  <footer>
+                  <footer className="order-crud-footer">
                     <small>
                       Add, remove, or update packages and amounts before
                       approval.
                     </small>
-                    <Button
-                      disabled={
-                        !items.length || busyKey === `approve:${request.id}`
-                      }
-                      onClick={() => approveRequest(request)}
-                      type="button"
-                    >
-                      {busyKey === `approve:${request.id}` ? (
-                        <LoaderCircle className="spin" />
-                      ) : (
-                        <CheckCircle2 />
-                      )}{" "}
-                      Approve basket
-                    </Button>
+                    <div className="order-crud-actions">
+                      <Button
+                        disabled={busyKey === `delete:${request.id}`}
+                        onClick={() => deleteRequest(request)}
+                        type="button"
+                        variant="ghost"
+                      >
+                        <Trash2 /> Delete
+                      </Button>
+                      <Button
+                        disabled={
+                          !items.length || busyKey === `save:${request.id}`
+                        }
+                        onClick={() => mutateRequest(request, "save")}
+                        type="button"
+                        variant="outline"
+                      >
+                        {busyKey === `save:${request.id}` ? (
+                          <LoaderCircle className="spin" />
+                        ) : (
+                          <Save />
+                        )}{" "}
+                        Save changes
+                      </Button>
+                      {canReview ? (
+                        <Button
+                          disabled={
+                            !items.length || busyKey === `approve:${request.id}`
+                          }
+                          onClick={() => mutateRequest(request, "approve")}
+                          type="button"
+                        >
+                          {busyKey === `approve:${request.id}` ? (
+                            <LoaderCircle className="spin" />
+                          ) : (
+                            <CheckCircle2 />
+                          )}{" "}
+                          Approve order
+                        </Button>
+                      ) : null}
+                    </div>
                   </footer>
                 </article>
               );
             })}
-          </section>
-        ) : null}
-
-        {isEmployee && pendingRequests.length ? (
-          <section className="employee-request-status">
-            <div className="orders-section-heading">
-              <div>
-                <p className="eyebrow">AWAITING REVIEW</p>
-                <h2>Sent to your manager</h2>
-              </div>
-            </div>
-            {pendingRequests.map((request) => (
-              <article key={request.id}>
-                <span>
-                  <Send />
-                </span>
-                <div>
-                  <strong>{request.supplierName}</strong>
-                  <small>
-                    {request.lines.length} items · sent{" "}
-                    {requestDate(request.createdAt)}
-                  </small>
-                </div>
-                <Badge variant="outline">Pending</Badge>
-              </article>
-            ))}
           </section>
         ) : null}
 
@@ -583,15 +911,29 @@ export function OrdersShell({
                         </small>
                       </span>
                     </div>
-                    <Button
-                      onClick={() => copyRequest(request)}
-                      size="sm"
-                      type="button"
-                      variant="outline"
-                    >
-                      <Clipboard />{" "}
-                      {copiedId === request.id ? "Copied" : "Copy list"}
-                    </Button>
+                    <div className="approved-order-actions">
+                      {canReview ? (
+                        <Button
+                          aria-label={`Delete ${request.supplierName} order`}
+                          disabled={busyKey === `delete:${request.id}`}
+                          onClick={() => deleteRequest(request)}
+                          size="icon"
+                          type="button"
+                          variant="ghost"
+                        >
+                          <Trash2 />
+                        </Button>
+                      ) : null}
+                      <Button
+                        onClick={() => copyRequest(request)}
+                        size="sm"
+                        type="button"
+                        variant="outline"
+                      >
+                        <Clipboard />{" "}
+                        {copiedId === request.id ? "Copied" : "Copy list"}
+                      </Button>
+                    </div>
                   </header>
                   <pre>{approvedList(request)}</pre>
                 </article>

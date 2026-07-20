@@ -43,6 +43,7 @@ export interface OrdersData {
     criticalCount: number;
   };
   baskets: SupplierBasket[];
+  catalogs: OrderCatalog[];
 }
 
 export interface OrderApprovalLine {
@@ -65,6 +66,13 @@ export interface OrderApprovalCatalogItem {
   unit: string;
   unitsPerPackage: number;
   latestPackagePrice: number | null;
+}
+
+export interface OrderCatalog {
+  supplierId: string;
+  supplierName: string;
+  currency: string;
+  items: OrderApprovalCatalogItem[];
 }
 
 export interface OrderApprovalRequest {
@@ -201,8 +209,31 @@ export async function getOrdersData(
   const defaultCurrency = profile?.currency ?? "ILS";
   const todayIndex = getWeekdayIndex(now, timeZone);
   const baskets = new Map<string, SupplierBasket>();
+  const catalogs = new Map<string, OrderCatalog>();
 
   for (const product of products) {
+    for (const link of product.supplierProducts) {
+      const supplier = link.supplier;
+      const latestPackagePrice = finiteNumberOrNull(
+        link.receiptLines[0]?.packagePrice ?? link.latestPackagePrice,
+      );
+      const catalog = catalogs.get(supplier.id) ?? {
+        supplierId: supplier.id,
+        supplierName: displayText(supplier.name, "Supplier"),
+        currency: displayText(supplier.currency, defaultCurrency),
+        items: [],
+      };
+      catalog.items.push({
+        productId: product.id,
+        productName: displayText(product.name, "Unnamed item"),
+        supplierSku: displayText(link.supplierSku, "") || null,
+        unit: displayText(product.baseUnit, "units"),
+        unitsPerPackage: Math.max(finiteNumber(link.unitsPerPackage, 1), 1),
+        latestPackagePrice,
+      });
+      catalogs.set(supplier.id, catalog);
+    }
+
     const supplierProduct = product.supplierProducts[0];
     if (!supplierProduct) continue;
 
@@ -344,6 +375,16 @@ export async function getOrdersData(
       criticalCount,
     },
     baskets: orderedBaskets,
+    catalogs: [...catalogs.values()]
+      .map((catalog) => ({
+        ...catalog,
+        items: catalog.items.sort((left, right) =>
+          left.productName.localeCompare(right.productName),
+        ),
+      }))
+      .sort((left, right) =>
+        left.supplierName.localeCompare(right.supplierName),
+      ),
   };
 }
 

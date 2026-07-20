@@ -3,9 +3,11 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { ApiAccessError, requireApiCompany } from "@/lib/auth/api";
-import { finiteNumber, finiteNumberOrNull } from "@/lib/display";
+import { displayText, finiteNumber, finiteNumberOrNull } from "@/lib/display";
 
-const approvalSchema = z.object({
+const mutationSchema = z.object({
+  action: z.enum(["save", "approve"]).optional().default("approve"),
+  note: z.string().trim().max(500).optional(),
   items: z
     .array(
       z.object({
@@ -23,11 +25,12 @@ export async function PATCH(
   context: { params: Promise<{ id: string }> },
 ) {
   try {
-    const { organizationId, userId } = await requireApiCompany([
+    const { organizationId, role, userId } = await requireApiCompany([
       "owner",
       "manager",
+      "employee",
     ]);
-    const parsed = approvalSchema.safeParse(
+    const parsed = mutationSchema.safeParse(
       await request.json().catch(() => null),
     );
     if (!parsed.success)
@@ -79,6 +82,17 @@ export async function PATCH(
         { error: "The pending basket was not found" },
         { status: 404 },
       );
+    const canReview = role === "owner" || role === "manager";
+    if (!canReview && basket.requestedById !== userId)
+      return NextResponse.json(
+        { error: "You can only edit your own pending orders" },
+        { status: 403 },
+      );
+    if (parsed.data.action === "approve" && !canReview)
+      return NextResponse.json(
+        { error: "A manager must approve this order" },
+        { status: 403 },
+      );
 
     const products = new Map(
       basket.supplier.products.map((link) => [link.productId, link]),
@@ -89,7 +103,8 @@ export async function PATCH(
         { status: 400 },
       );
 
-    const reviewedAt = new Date();
+    const isApproval = parsed.data.action === "approve";
+    const reviewedAt = isApproval ? new Date() : null;
     await prisma.$transaction(async (tx) => {
       await tx.orderBasketRequestLine.deleteMany({
         where: { requestId: basket.id },
@@ -124,8 +139,11 @@ export async function PATCH(
       await tx.orderBasketRequest.update({
         where: { id: basket.id },
         data: {
-          status: "APPROVED",
-          reviewedById: userId,
+          ...(parsed.data.note === undefined
+            ? {}
+            : { note: displayText(parsed.data.note, "") || null }),
+          status: isApproval ? "APPROVED" : "PENDING",
+          reviewedById: isApproval ? userId : null,
           reviewedAt,
         },
       });
@@ -133,7 +151,7 @@ export async function PATCH(
         data: {
           businessId: organizationId,
           actorId: userId,
-          action: "order.basket.approved",
+          action: isApproval ? "order.basket.approved" : "order.basket.updated",
           entityType: "OrderBasketRequest",
           entityId: basket.id,
           metadata: {
@@ -155,7 +173,72 @@ export async function PATCH(
       );
     console.error(error);
     return NextResponse.json(
-      { error: "Unable to approve the supplier basket" },
+      { error: "Unable to update the supplier order" },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  try {
+    const { organizationId, role, userId } = await requireApiCompany([
+      "owner",
+      "manager",
+      "employee",
+    ]);
+    const { id } = await context.params;
+    const basket = await prisma.orderBasketRequest.findFirst({
+      where: { id, businessId: organizationId },
+      include: { supplier: { select: { name: true } } },
+    });
+    if (!basket)
+      return NextResponse.json(
+        { error: "The order was not found" },
+        { status: 404 },
+      );
+
+    const canManageAll = role === "owner" || role === "manager";
+    if (
+      !canManageAll &&
+      (basket.requestedById !== userId || basket.status !== "PENDING")
+    )
+      return NextResponse.json(
+        { error: "You can only delete your own pending orders" },
+        { status: 403 },
+      );
+
+    await prisma.$transaction(async (tx) => {
+      await tx.orderBasketRequest.delete({ where: { id: basket.id } });
+      await tx.auditEvent.create({
+        data: {
+          businessId: organizationId,
+          actorId: userId,
+          action: "order.basket.deleted",
+          entityType: "OrderBasketRequest",
+          entityId: basket.id,
+          metadata: {
+            supplierId: basket.supplierId,
+            supplierName: displayText(basket.supplier.name, "Supplier"),
+            previousStatus: basket.status,
+            requestedById: basket.requestedById,
+          },
+        },
+      });
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof ApiAccessError)
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
+    console.error(error);
+    return NextResponse.json(
+      { error: "Unable to delete the supplier order" },
       { status: 500 },
     );
   }

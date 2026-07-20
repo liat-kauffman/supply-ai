@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { ApiAccessError, requireApiCompany } from "@/lib/auth/api";
 import { displayText, finiteNumber, finiteNumberOrNull } from "@/lib/display";
+import { getOrderApprovalRequests } from "@/lib/orders";
 
 const requestSchema = z.object({
   supplierId: z.string().min(1),
@@ -13,11 +14,39 @@ const requestSchema = z.object({
       z.object({
         productId: z.string().min(1),
         packageCount: z.number().int().min(0).max(10_000),
+        requestedQuantity: z.number().positive().max(1_000_000).optional(),
       }),
     )
     .min(1)
     .max(200),
 });
+
+export async function GET() {
+  try {
+    const { organizationId, role, userId } = await requireApiCompany([
+      "owner",
+      "manager",
+      "employee",
+    ]);
+    const requests = await getOrderApprovalRequests(
+      organizationId,
+      userId,
+      role,
+    );
+    return NextResponse.json({ requests });
+  } catch (error) {
+    if (error instanceof ApiAccessError)
+      return NextResponse.json(
+        { error: error.message },
+        { status: error.status },
+      );
+    console.error(error);
+    return NextResponse.json(
+      { error: "Unable to load supplier orders" },
+      { status: 500 },
+    );
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -129,7 +158,8 @@ export async function POST(request: Request) {
                 productName: displayText(link.product.name, "Item"),
                 supplierSku: displayText(link.supplierSku, "") || null,
                 unit: displayText(link.product.baseUnit, "units"),
-                requestedQuantity: item.packageCount * unitsPerPackage,
+                requestedQuantity:
+                  item.requestedQuantity ?? item.packageCount * unitsPerPackage,
                 unitsPerPackage,
                 packageCount: item.packageCount,
                 latestPackagePrice,

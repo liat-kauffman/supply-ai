@@ -1438,6 +1438,34 @@ footer a {
   }
 }
 
+@media (max-width: 720px) {
+  .orders-header-actions,
+  .orders-header-actions .inline-flex,
+  .order-crud-actions,
+  .order-crud-actions .inline-flex,
+  .approved-order-actions {
+    width: 100%;
+  }
+  .orders-header-actions,
+  .order-crud-actions {
+    flex-direction: column;
+  }
+  .orders-header-actions .inline-flex,
+  .order-crud-actions .inline-flex {
+    justify-content: center;
+  }
+  .create-order-supplier {
+    display: flex;
+  }
+  .create-order-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .create-order-footer .inline-flex {
+    width: 100%;
+  }
+}
+
 .inventory-main {
   width: min(1320px, 100%);
 }
@@ -2295,6 +2323,18 @@ footer a {
 .orders-header .subtitle {
   max-width: 720px;
 }
+.orders-header-actions,
+.order-crud-actions,
+.approved-order-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.orders-header-actions svg,
+.order-crud-actions svg,
+.approved-order-actions svg {
+  width: 14px;
+}
 .orders-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2541,6 +2581,56 @@ footer a {
   background: #fbfcfa;
   font-size: 10px;
   font-style: italic;
+}
+.approval-edit-note {
+  display: grid;
+  gap: 5px;
+  padding: 12px 16px;
+  border-bottom: 1px solid #edf1ed;
+  background: #fffdf8;
+}
+.approval-edit-note > span,
+.create-order-footer label > span {
+  color: #6f7c76;
+  font-size: 8px;
+  font-weight: 750;
+}
+.approval-edit-note textarea,
+.create-order-footer textarea {
+  width: 100%;
+  min-height: 54px;
+  resize: vertical;
+  border: 1px solid #d8e0da;
+  border-radius: 9px;
+  padding: 9px 10px;
+  color: #294139;
+  background: #fff;
+  font: inherit;
+  font-size: 9px;
+}
+.create-order-workspace {
+  border-color: #cfded5;
+  background: #f7faf8;
+}
+.create-order-supplier {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.75fr) minmax(190px, 1.25fr) auto;
+}
+.create-order-footer label {
+  display: grid;
+  flex: 1;
+  gap: 5px;
+}
+.order-crud-footer > small {
+  max-width: 330px;
+}
+.order-crud-actions {
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+.order-crud-actions > button:first-child,
+.approved-order-actions > button:first-child:not(:last-child) {
+  color: #9e493e;
 }
 .approval-add-item {
   display: flex;
