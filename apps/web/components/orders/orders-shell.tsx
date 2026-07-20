@@ -1072,7 +1072,7 @@ export function OrdersShell({
                             size="icon"
                             title={isEditing ? "Cancel editing" : "Edit order"}
                             type="button"
-                            variant="outline"
+                            variant="ghost"
                           >
                             {isEditing ? <X /> : <Pencil />}
                           </Button>
@@ -1102,7 +1102,7 @@ export function OrdersShell({
                             copiedId === request.id ? "Copied" : "Copy order"
                           }
                           type="button"
-                          variant="outline"
+                          variant="ghost"
                         >
                           {copiedId === request.id ? (
                             <CheckCircle2 />
