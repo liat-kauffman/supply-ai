@@ -1,0 +1,125 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Supplai production PostgreSQL database on Amazon RDS
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  DatabaseSubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: At least two subnets in different Availability Zones
+  AllowedDatabaseCidr:
+    Type: String
+    Description: The trusted application or migration CIDR allowed on port 5432
+    AllowedPattern: "^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}/(?:[0-9]|[12][0-9]|3[0-2])$"
+  PubliclyAccessible:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  MultiAZ:
+    Type: String
+    Default: "true"
+    AllowedValues: ["true", "false"]
+  DatabaseName:
+    Type: String
+    Default: supplai
+    AllowedPattern: "^[a-zA-Z][a-zA-Z0-9_]{0,62}$"
+  MasterUsername:
+    Type: String
+    Default: supplai_admin
+    AllowedPattern: "^[a-zA-Z][a-zA-Z0-9_]{0,62}$"
+  DatabaseInstanceClass:
+    Type: String
+    Default: db.t4g.small
+  PostgreSQLVersion:
+    Type: String
+    Default: "17.6"
+  AllocatedStorage:
+    Type: Number
+    Default: 20
+    MinValue: 20
+  MaxAllocatedStorage:
+    Type: Number
+    Default: 100
+    MinValue: 20
+
+Conditions:
+  IsPublic: !Equals [!Ref PubliclyAccessible, "true"]
+  IsMultiAZ: !Equals [!Ref MultiAZ, "true"]
+
+Resources:
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Supplai PostgreSQL access
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - Description: Trusted Supplai application network
+          IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          CidrIp: !Ref AllowedDatabaseCidr
+      Tags:
+        - Key: Name
+          Value: supplai-production-rds
+
+  DatabaseSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Supplai production database subnets
+      SubnetIds: !Ref DatabaseSubnetIds
+
+  DatabaseParameterGroup:
+    Type: AWS::RDS::DBParameterGroup
+    Properties:
+      Description: Supplai PostgreSQL 17 settings
+      Family: postgres17
+      Parameters:
+        rds.force_ssl: "1"
+
+  Database:
+    Type: AWS::RDS::DBInstance
+    DeletionPolicy: Snapshot
+    UpdateReplacePolicy: Snapshot
+    Properties:
+      DBInstanceIdentifier: supplai-production
+      DBName: !Ref DatabaseName
+      DBInstanceClass: !Ref DatabaseInstanceClass
+      Engine: postgres
+      EngineVersion: !Ref PostgreSQLVersion
+      MasterUsername: !Ref MasterUsername
+      ManageMasterUserPassword: true
+      AllocatedStorage: !Ref AllocatedStorage
+      MaxAllocatedStorage: !Ref MaxAllocatedStorage
+      StorageType: gp3
+      StorageEncrypted: true
+      AutoMinorVersionUpgrade: true
+      BackupRetentionPeriod: 14
+      CopyTagsToSnapshot: true
+      DeletionProtection: true
+      MultiAZ: !If [IsMultiAZ, true, false]
+      PubliclyAccessible: !If [IsPublic, true, false]
+      DBSubnetGroupName: !Ref DatabaseSubnetGroup
+      DBParameterGroupName: !Ref DatabaseParameterGroup
+      VPCSecurityGroups:
+        - !GetAtt DatabaseSecurityGroup.GroupId
+      EnablePerformanceInsights: true
+      EnableCloudwatchLogsExports:
+        - postgresql
+        - upgrade
+      Tags:
+        - Key: Application
+          Value: supplai
+        - Key: Environment
+          Value: production
+
+Outputs:
+  DatabaseEndpoint:
+    Value: !GetAtt Database.Endpoint.Address
+  DatabasePort:
+    Value: !GetAtt Database.Endpoint.Port
+  DatabaseName:
+    Value: !Ref DatabaseName
+  MasterUserSecretArn:
+    Value: !GetAtt Database.MasterUserSecret.SecretArn
+  DatabaseSecurityGroupId:
+    Value: !GetAtt DatabaseSecurityGroup.GroupId

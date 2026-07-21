@@ -181,6 +181,9 @@ pnpm build
 - Deploy [`frontend`](frontend/DEPLOYMENT.md) to Vercel as the project root.
 - Deploy [`backend`](backend/DEPLOYMENT.md) to AWS ECS Fargate from its Docker
   image and task definition.
+- Provision production PostgreSQL on AWS RDS with
+  [`rds-postgres.yaml`](backend/aws/rds-postgres.yaml); local Docker PostgreSQL
+  is development-only.
 
 The Next.js frontend is currently full-stack and owns authentication,
 server-rendered database queries, and route handlers. The AWS backend folder is
