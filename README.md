@@ -25,9 +25,8 @@ Supplai is a human-in-the-loop inventory operations platform for cafés. It give
 Supplai is a TypeScript modular monolith managed with pnpm and Turborepo:
 
 ```text
-apps/
-  web/       Next.js application, authentication, UI, and API routes
-  worker/    Asynchronous worker runtime and health server
+frontend/    Next.js application, authentication, UI, API routes, and Vercel config
+backend/     Asynchronous worker, AWS container, and ECS task definition
 packages/
   database/  Prisma schema and shared PostgreSQL client
   domain/    Shared Zod schemas and approval rules
@@ -67,10 +66,10 @@ See [ADR 0001](docs/adr/0001-modular-monolith.md) and [ADR 0002](docs/adr/0002-b
 
 ```bash
 cp .env.example .env
-ln -s ../../.env apps/web/.env.local
+ln -s ../.env frontend/.env.local
 ```
 
-The symlink lets both the root database commands and the Next.js app use the same local values. If `apps/web/.env.local` already exists, keep it. On systems where symlinks are inconvenient, copy `.env` to `apps/web/.env.local` instead.
+The symlink lets both the root database commands and the Next.js app use the same local values. If `frontend/.env.local` already exists, keep it. On systems where symlinks are inconvenient, copy `.env` to `frontend/.env.local` instead.
 
 Generate a strong authentication secret before signing in:
 
@@ -176,6 +175,16 @@ pnpm typecheck
 pnpm test
 pnpm build
 ```
+
+## Deployment
+
+- Deploy [`frontend`](frontend/DEPLOYMENT.md) to Vercel as the project root.
+- Deploy [`backend`](backend/DEPLOYMENT.md) to AWS ECS Fargate from its Docker
+  image and task definition.
+
+The Next.js frontend is currently full-stack and owns authentication,
+server-rendered database queries, and route handlers. The AWS backend folder is
+the independently deployable asynchronous worker.
 
 ## Safety model
 

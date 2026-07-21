@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const nextConfig: NextConfig = {
   output: "standalone",
   transpilePackages: ["@supply/domain", "@supply/database"],
-  outputFileTracingRoot: process.cwd(),
+  outputFileTracingRoot: path.join(process.cwd(), ".."),
   experimental: { cpus: 1 },
 };
 
