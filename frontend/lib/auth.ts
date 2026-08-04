@@ -22,6 +22,13 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     minPasswordLength: 12,
+    async sendResetPassword({ user, url }) {
+      await sendAuthEmail({
+        to: user.email,
+        subject: "Reset your Supplai password",
+        actionUrl: url,
+      });
+    },
   },
   emailVerification: {
     sendOnSignUp: true,

@@ -1,15 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 
-export function LoginForm() {
-  const router = useRouter();
-  const searchParams = useSearchParams();
+export function ForgotPasswordForm() {
+  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
@@ -18,15 +16,16 @@ export function LoginForm() {
     setPending(true);
     setError(null);
     const form = new FormData(event.currentTarget);
-    const result = await authClient.signIn.email({
+    const result = await authClient.requestPasswordReset({
       email: String(form.get("email")),
-      password: String(form.get("password")),
+      redirectTo: "/reset-password",
     });
     setPending(false);
     if (result.error)
-      return setError(result.error.message ?? "Unable to sign in");
-    router.push(searchParams.get("next") ?? "/");
-    router.refresh();
+      return setError(result.error.message ?? "Unable to send reset email");
+    setMessage(
+      "If an account exists for that email, a password reset link has been sent. Check your inbox and spam folder.",
+    );
   }
 
   return (
@@ -35,30 +34,21 @@ export function LoginForm() {
         Email
         <input name="email" type="email" autoComplete="email" required />
       </label>
-      <label>
-        Password
-        <input
-          name="password"
-          type="password"
-          autoComplete="current-password"
-          minLength={12}
-          required
-        />
-      </label>
-      <small>
-        <Link href="/forgot-password">Forgot your password?</Link>
-      </small>
       {error ? (
         <p className="form-error" role="alert">
           {error}
         </p>
       ) : null}
-      <Button disabled={pending} type="submit">
-        {pending ? "Signing in…" : "Sign in"}
+      {message ? (
+        <p className="form-success" role="status">
+          {message}
+        </p>
+      ) : null}
+      <Button disabled={pending || Boolean(message)} type="submit">
+        {pending ? "Sending…" : "Send reset link"}
       </Button>
       <small>
-        Registering a company?{" "}
-        <Link href="/register">Create an owner account</Link>
+        Remember your password? <Link href="/login">Sign in</Link>
       </small>
     </form>
   );

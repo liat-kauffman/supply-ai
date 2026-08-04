@@ -71,6 +71,15 @@ ln -s ../.env frontend/.env.local
 
 The symlink lets both the root database commands and the Next.js app use the same local values. If `frontend/.env.local` already exists, keep it. On systems where symlinks are inconvenient, copy `.env` to `frontend/.env.local` instead.
 
+Prisma runs from `packages/database`, so load the root environment into your
+current shell before running migrations or the seed:
+
+```bash
+set -a
+source .env
+set +a
+```
+
 Generate a strong authentication secret before signing in:
 
 ```bash
@@ -90,7 +99,10 @@ The local database is exposed on port `5433` so it does not collide with a defau
 ### 3. Install and initialize
 
 ```bash
-pnpm install
+pnpm install --frozen-lockfile
+set -a
+source .env
+set +a
 pnpm db:generate
 pnpm db:migrate
 pnpm db:seed

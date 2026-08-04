@@ -1,0 +1,62 @@
+{
+  "family": "supplai-frontend",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/ecsTaskExecutionRole",
+  "containerDefinitions": [
+    {
+      "name": "supplai-frontend",
+      "image": "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/supplai-frontend:<IMAGE_TAG>",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 3000,
+          "hostPort": 3000,
+          "protocol": "tcp",
+          "name": "http"
+        }
+      ],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "PORT", "value": "3000" },
+        { "name": "HOSTNAME", "value": "0.0.0.0" },
+        { "name": "BETTER_AUTH_URL", "value": "http://REPLACE_WITH_LOAD_BALANCER_URL" },
+        { "name": "AUTH_EMAIL_FROM", "value": "REPLACE_WITH_AUTH_EMAIL_FROM" }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "<DATABASE_URL_SECRET_ARN>"
+        },
+        {
+          "name": "BETTER_AUTH_SECRET",
+          "valueFrom": "<BETTER_AUTH_SECRET_ARN>"
+        },
+        {
+          "name": "RESEND_API_KEY",
+          "valueFrom": "<RESEND_API_KEY_ARN>"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/supplai-frontend",
+          "awslogs-region": "<AWS_REGION>",
+          "awslogs-stream-prefix": "ecs"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "wget -qO- http://127.0.0.1:3000/api/health/ready >/dev/null || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 5,
+        "startPeriod": 60
+      }
+    }
+  ]
+}
