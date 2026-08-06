@@ -1,4 +1,5 @@
 import { ArrowRight } from "lucide-react";
+import Link from "next/link";
 
 interface SectionHeadingProps {
   title: string;
@@ -20,9 +21,9 @@ export function SectionHeading({
         {description ? <p>{description}</p> : null}
       </div>
       {actionLabel ? (
-        <a href={actionHref}>
+        <Link href={actionHref}>
           {actionLabel} <ArrowRight />
-        </a>
+        </Link>
       ) : null}
     </div>
   );

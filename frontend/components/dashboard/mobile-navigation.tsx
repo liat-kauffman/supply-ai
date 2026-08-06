@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { LucideIcon } from "lucide-react";
+import { UserRound, type LucideIcon } from "lucide-react";
 
 export function MobileNavigation({
   items,
@@ -10,16 +10,19 @@ export function MobileNavigation({
   items: Array<{ label: string; href: string; icon: LucideIcon }>;
 }) {
   const pathname = usePathname();
-  const mobileItems = items.filter((item) =>
-    [
-      "/",
-      "/inventory",
-      "/orders",
-      "/receipts",
-      "/analytics",
-      "/company/workers",
-    ].includes(item.href),
-  );
+  const mobileItems = [
+    ...items.filter((item) =>
+      [
+        "/",
+        "/inventory",
+        "/orders",
+        "/receipts",
+        "/analytics",
+        "/company/workers",
+      ].includes(item.href),
+    ),
+    { label: "Profile", href: "/profile", icon: UserRound },
+  ];
 
   return (
     <nav className="mobile-nav">
