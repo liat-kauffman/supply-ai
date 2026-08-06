@@ -12,6 +12,7 @@ export function LoginForm() {
   const searchParams = useSearchParams();
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [demoPending, setDemoPending] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -25,6 +26,20 @@ export function LoginForm() {
     setPending(false);
     if (result.error)
       return setError(result.error.message ?? "Unable to sign in");
+    router.push(searchParams.get("next") ?? "/");
+    router.refresh();
+  }
+
+  async function tryDemo() {
+    setDemoPending(true);
+    setError(null);
+    const response = await fetch("/api/demo-login", { method: "POST" });
+    const result = (await response.json().catch(() => null)) as {
+      error?: string;
+    } | null;
+    setDemoPending(false);
+    if (!response.ok)
+      return setError(result?.error ?? "Unable to start the demo");
     router.push(searchParams.get("next") ?? "/");
     router.refresh();
   }
@@ -55,6 +70,14 @@ export function LoginForm() {
       ) : null}
       <Button disabled={pending} type="submit">
         {pending ? "Signing in…" : "Sign in"}
+      </Button>
+      <Button
+        disabled={pending || demoPending}
+        onClick={tryDemo}
+        type="button"
+        variant="outline"
+      >
+        {demoPending ? "Opening demo…" : "Explore the demo"}
       </Button>
       <small>
         Registering a company?{" "}

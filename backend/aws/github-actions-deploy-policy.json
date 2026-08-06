@@ -1,0 +1,53 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "EcrLogin",
+      "Effect": "Allow",
+      "Action": "ecr:GetAuthorizationToken",
+      "Resource": "*"
+    },
+    {
+      "Sid": "PushSupplaiImages",
+      "Effect": "Allow",
+      "Action": [
+        "ecr:BatchCheckLayerAvailability",
+        "ecr:CompleteLayerUpload",
+        "ecr:InitiateLayerUpload",
+        "ecr:PutImage",
+        "ecr:UploadLayerPart"
+      ],
+      "Resource": [
+        "arn:aws:ecr:us-east-1:439777529311:repository/supplai-frontend",
+        "arn:aws:ecr:us-east-1:439777529311:repository/supplai-backend"
+      ]
+    },
+    {
+      "Sid": "ReadProductionSecretMetadata",
+      "Effect": "Allow",
+      "Action": "secretsmanager:DescribeSecret",
+      "Resource": "arn:aws:secretsmanager:us-east-1:439777529311:secret:supplai/production/*"
+    },
+    {
+      "Sid": "RegisterTaskDefinitions",
+      "Effect": "Allow",
+      "Action": ["ecs:RegisterTaskDefinition", "ecs:DescribeServices"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "DeploySupplaiServices",
+      "Effect": "Allow",
+      "Action": "ecs:UpdateService",
+      "Resource": [
+        "arn:aws:ecs:us-east-1:439777529311:service/supplai-production/supplai-frontend",
+        "arn:aws:ecs:us-east-1:439777529311:service/supplai-production/supplai-backend"
+      ]
+    },
+    {
+      "Sid": "PassEcsExecutionRole",
+      "Effect": "Allow",
+      "Action": "iam:PassRole",
+      "Resource": "arn:aws:iam::439777529311:role/ecsTaskExecutionRole"
+    }
+  ]
+}

@@ -1,17 +1,19 @@
-# Backend deployment — AWS
+# Backend deployment — AWS ECS
+
+The `backend/` project is the asynchronous worker and health service. The
+full-stack Next.js frontend remains the customer-facing application and owns
+Better Auth, server-side database access, and `/api` routes.
 
 ## Production database — Amazon RDS
 
-`aws/rds-postgres.yaml` provisions PostgreSQL 17 with encrypted storage,
-14-day backups, deletion protection, automatic minor upgrades, managed master
-credentials in Secrets Manager, and required TLS connections.
-
-Deploy it into at least two subnets in different Availability Zones:
+The CloudFormation template provisions encrypted PostgreSQL with backups,
+deletion protection, and a managed RDS master secret:
 
 ```bash
 aws cloudformation deploy \
   --stack-name supplai-production-database \
   --template-file backend/aws/rds-postgres.yaml \
+  --region us-east-1 \
   --parameter-overrides \
     VpcId=vpc-... \
     DatabaseSubnetIds='subnet-...,subnet-...' \
@@ -20,75 +22,82 @@ aws cloudformation deploy \
   --no-fail-on-empty-changeset
 ```
 
-Use private subnets and `PubliclyAccessible=false` when Vercel has private VPC
-connectivity. If Vercel connects directly over the internet, use public
-database subnets, set `PubliclyAccessible=true`, and replace
-`AllowedDatabaseCidr` with the stable Vercel egress CIDR. Never use
-`0.0.0.0/0`.
+Keep RDS private. Create a dedicated `supplai_app` role and store its TLS
+connection URL as the separate Secrets Manager secret
+`supplai/production/database-url`. ECS tasks must not use the RDS master
+credential.
 
-Retrieve the generated master credential from the stack's
-`MasterUserSecretArn` output. Use it only to create a dedicated application
-role; do not put the RDS master credential in Vercel:
-
-```sql
-CREATE ROLE supplai_app LOGIN;
-GRANT CONNECT, TEMPORARY ON DATABASE supplai TO supplai_app;
-GRANT USAGE, CREATE ON SCHEMA public TO supplai_app;
-```
-
-Set the role's password securely with `psql`'s `\password supplai_app` command.
-Build the application URL with its URL-encoded password:
+The production URL has this shape:
 
 ```text
-postgresql://supplai_app:PASSWORD@RDS_ENDPOINT:5432/supplai?sslmode=require
+postgresql://supplai_app:URL_ENCODED_PASSWORD@RDS_ENDPOINT:5432/supplai?sslmode=require
 ```
 
-Store that full URL as `DATABASE_URL` in Vercel and as a separate Secrets
-Manager secret for migration tasks. Do not commit it.
+## Database migrations
 
-The ECS task execution role must be able to read that URL secret with
-`secretsmanager:GetSecretValue` and, when a customer-managed KMS key protects
-the secret, `kms:Decrypt`.
-
-Build the one-off migration image and replace the placeholders in
-`aws/migration-task-definition.json` before registering and running it in the
-database VPC:
+Build the migration image for Fargate:
 
 ```bash
-docker build -f backend/aws/migrations.Dockerfile -t supplai-migrations .
-aws ecs register-task-definition \
-  --cli-input-json file://backend/aws/migration-task-definition.json
+export AWS_REGION=us-east-1
+export AWS_ACCOUNT_ID=439777529311
+export ECR_REGISTRY="$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+export IMAGE_TAG=$(git rev-parse --short=12 HEAD)-$(date +%Y%m%d%H%M%S)
+
+docker buildx build \
+  --platform linux/amd64 \
+  --file backend/aws/migrations.Dockerfile \
+  --tag "$ECR_REGISTRY/supplai-migrations:$IMAGE_TAG" \
+  --push \
+  .
 ```
 
-## Asynchronous worker
+Register the task definition with the database URL secret ARN, run it in the
+database VPC, and confirm exit code `0`. Never print or commit the secret
+value.
 
-The `backend` project is the asynchronous worker and operational health
-service. Build its production image from the repository root so Docker can
-include the shared workspace packages:
+## Worker image and service
+
+Build and push the worker image:
 
 ```bash
-docker build -f backend/Dockerfile -t supplai-backend .
+docker buildx build \
+  --platform linux/amd64 \
+  --file backend/Dockerfile \
+  --tag "$ECR_REGISTRY/supplai-backend:$IMAGE_TAG" \
+  --push \
+  .
 ```
 
-Push the image to a private Amazon ECR repository, then replace the three
-placeholders in `aws/ecs-task-definition.json`:
-
-- `<AWS_ACCOUNT_ID>`
-- `<AWS_REGION>`
-- `<IMAGE_TAG>`
-
-Create the `/ecs/supplai-backend` CloudWatch log group and register the task:
+Register `backend/aws/ecs-task-definition.json`, create or update the
+`supplai-backend` service in the `supplai-production` cluster, and verify:
 
 ```bash
-aws logs create-log-group --log-group-name /ecs/supplai-backend
-aws ecs register-task-definition \
-  --cli-input-json file://backend/aws/ecs-task-definition.json
+aws logs tail /ecs/supplai-backend --since 30m --region us-east-1
 ```
 
-Run it in an ECS Fargate service with port `3001` allowed only where needed.
-The container and task definition both check `/health/ready`.
+The worker exposes `/health/live` and `/health/ready` on port `3001`. It is not
+internet-facing. Use an internal service or ECS service discovery if another
+private workload needs to call it.
 
-The user-facing API currently remains in the full-stack Next.js frontend. The
-AWS worker is separated and deployable, but moving Better Auth, server-side
-page queries, and all `/api` handlers behind a standalone AWS API would be a
-separate application-boundary refactor.
+## Secure database inspection
+
+For a private RDS instance, use an SSM-connected temporary EC2 instance and
+port forwarding rather than opening PostgreSQL to the internet:
+
+```bash
+aws ssm start-session \
+  --target INSTANCE_ID \
+  --document-name AWS-StartPortForwardingSessionToRemoteHost \
+  --parameters '{"host":["RDS_ENDPOINT"],"portNumber":["5432"],"localPortNumber":["15432"]}' \
+  --region us-east-1
+```
+
+In a second terminal:
+
+```bash
+PGSSLMODE=require psql \
+  --host=127.0.0.1 --port=15432 \
+  --username=supplai_admin --dbname=supplai
+```
+
+The port-forwarding terminal must remain open while `psql` is in use.

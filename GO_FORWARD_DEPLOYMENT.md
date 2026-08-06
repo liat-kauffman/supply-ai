@@ -1,10 +1,30 @@
 # Supplai: go-forward deployment plan
 
-This is the operating guide for taking Supplai from the current repository to a production deployment.
+This is the operating guide for taking Supplai from the repository to production.
+
+## Current production state
+
+Supplai is currently deployed AWS-only. The live path is:
+
+```text
+https://supplai-pilot.com
+  -> HTTPS Application Load Balancer
+  -> ECS Fargate service: supplai-frontend
+  -> private Amazon RDS PostgreSQL
+```
+
+The worker runs as a separate `supplai-backend` ECS Fargate service. ECR stores
+the images, Secrets Manager stores production credentials, Resend sends
+authentication email, and Gemini powers receipt/photo proposals. The frontend
+is not currently deployed to Vercel.
+
+The historical Vercel/EKS options below are retained as future alternatives.
+For current operations, follow the focused [frontend ECS guide](frontend/DEPLOYMENT.md)
+and [backend ECS guide](backend/DEPLOYMENT.md) first.
 
 It is based on the files currently in this repository:
 
-- `frontend/` is a full-stack Next.js application. Its pages, Better Auth handler, server-side database access, and `/api` routes run on Vercel.
+- `frontend/` is a full-stack Next.js application. Its pages, Better Auth handler, server-side database access, and `/api` routes run in ECS Fargate.
 - `backend/` is an independent TypeScript worker with a health service on port `3001`.
 - `packages/database/` owns Prisma, PostgreSQL migrations, and the database client.
 - `packages/domain/` contains shared validation and domain rules.
@@ -21,13 +41,13 @@ Use this architecture as the end state:
 Users
   |
   v
-Vercel: Next.js frontend + Better Auth + API routes
+AWS ECS: Next.js frontend + Better Auth + API routes
   |
   | TLS PostgreSQL connection
   v
 AWS: private RDS PostgreSQL ---- AWS Secrets Manager
 
-AWS EKS: backend worker deployment
+AWS ECS: backend worker deployment
   |
   +-- CloudWatch logs
   +-- Kubernetes readiness/liveness probes
@@ -36,8 +56,8 @@ AWS EKS: backend worker deployment
 The shortest safe path is staged:
 
 1. Provision AWS RDS and the required AWS foundations.
-2. Deploy the frontend to Vercel and connect it to RDS.
-3. Keep the worker on ECS temporarily using the existing files, or move it to EKS once the cluster is ready.
+2. Deploy the frontend to ECS behind an HTTPS Application Load Balancer.
+3. Run the worker on ECS; move it to EKS only if Kubernetes is later required.
 4. Add CD only after CI is green and a manual deployment works.
 5. Use EKS for the worker; do not run the same production worker in both ECS and EKS unless you deliberately need two copies and have checked duplicate-job behaviour.
 
@@ -157,7 +177,10 @@ aws ecr create-repository --repository-name supplai-migrations
 
 Enable image scanning, lifecycle cleanup, and immutable tags in the AWS console or with your organization's standard ECR policy. Use the Git commit SHA as the immutable image tag; do not deploy `latest`.
 
-## Phase 2 — deploy the frontend to Vercel
+## Historical alternative — deploy the frontend to Vercel
+
+This section is not part of the current production path. Use it only if the
+team deliberately chooses to move the full-stack frontend away from ECS.
 
 Create a Vercel project connected to this repository with:
 
@@ -320,7 +343,7 @@ Rotate secrets on a schedule and immediately after accidental exposure. Keep `.e
 - [ ] AWS account MFA, billing alerts, CloudTrail, and least-privilege access are configured.
 - [ ] RDS is encrypted, Multi-AZ, backed up for 14 days, deletion-protected, and not open to the internet.
 - [ ] A dedicated application database role is used instead of the RDS master user.
-- [ ] Vercel production variables are set and Preview variables are separate.
+- [ ] ECS production task secrets and environment variables are set; Vercel is not required for the current deployment.
 - [ ] Authentication email delivery and the verified sender work.
 - [ ] Prisma migrations have been applied with `migrate deploy`.
 - [ ] CI is required on pull requests.
@@ -334,7 +357,7 @@ Rotate secrets on a schedule and immediately after accidental exposure. Keep `.e
 ## Recommended implementation order
 
 1. Finish AWS networking and provision RDS.
-2. Deploy Vercel manually and validate the complete user flow.
+2. Deploy ECS manually and validate the complete user flow.
 3. Push and run the worker on ECS using the existing deployment files, if EKS will take time.
 4. Create EKS and move the worker there with a minimal Deployment and external secrets.
 5. Add GitHub OIDC, ECR publishing, migration approval, and EKS rollout automation.

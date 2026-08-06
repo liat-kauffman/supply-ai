@@ -23,7 +23,10 @@
         { "name": "PORT", "value": "3000" },
         { "name": "HOSTNAME", "value": "0.0.0.0" },
         { "name": "BETTER_AUTH_URL", "value": "http://REPLACE_WITH_LOAD_BALANCER_URL" },
-        { "name": "AUTH_EMAIL_FROM", "value": "REPLACE_WITH_AUTH_EMAIL_FROM" }
+        { "name": "AUTH_EMAIL_FROM", "value": "REPLACE_WITH_AUTH_EMAIL_FROM" },
+        { "name": "GEMINI_MODEL", "value": "gemini-3.5-flash-lite" },
+        { "name": "GEMINI_FALLBACK_MODEL", "value": "gemini-3.6-flash" },
+        { "name": "ENABLE_DEMO_MODE", "value": "true" }
       ],
       "secrets": [
         {
@@ -37,6 +40,10 @@
         {
           "name": "RESEND_API_KEY",
           "valueFrom": "<RESEND_API_KEY_ARN>"
+        },
+        {
+          "name": "GEMINI_API_KEY",
+          "valueFrom": "<GEMINI_API_KEY_ARN>"
         }
       ],
       "logConfiguration": {

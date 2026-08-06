@@ -34,6 +34,7 @@ export const auth = betterAuth({
     sendOnSignUp: true,
     autoSignInAfterVerification: true,
     async sendVerificationEmail({ user, url }) {
+      if (user.email.endsWith("@demo.supplai-pilot.com")) return;
       await sendAuthEmail({
         to: user.email,
         subject: "Verify your Supplai account",

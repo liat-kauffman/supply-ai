@@ -25,7 +25,7 @@ Supplai is a human-in-the-loop inventory operations platform for cafés. It give
 Supplai is a TypeScript modular monolith managed with pnpm and Turborepo:
 
 ```text
-frontend/    Next.js application, authentication, UI, API routes, and Vercel config
+frontend/    Next.js application, authentication, UI, API routes, and ECS image
 backend/     Asynchronous worker, AWS container, and ECS task definition
 packages/
   database/  Prisma schema and shared PostgreSQL client
@@ -190,12 +190,83 @@ pnpm build
 
 ## Deployment
 
-- Deploy [`frontend`](frontend/DEPLOYMENT.md) to Vercel as the project root.
-- Deploy [`backend`](backend/DEPLOYMENT.md) to AWS ECS Fargate from its Docker
-  image and task definition.
-- Provision production PostgreSQL on AWS RDS with
-  [`rds-postgres.yaml`](backend/aws/rds-postgres.yaml); local Docker PostgreSQL
-  is development-only.
+The current production deployment is AWS-only:
+
+- Web application: ECS Fargate running the full-stack Next.js image.
+- Public traffic: Application Load Balancer with HTTPS at
+  [https://supplai-pilot.com](https://supplai-pilot.com).
+- Database: private encrypted PostgreSQL on Amazon RDS.
+- Images: Amazon ECR, built for `linux/amd64`.
+- Email: Resend, using a verified `supplai-pilot.com` sender.
+- AI: Gemini, using the `GEMINI_MODEL` and `GEMINI_FALLBACK_MODEL` ECS settings.
+- Worker: a separate ECS Fargate service on port `3001`.
+
+### Automatic deployment
+
+The GitHub Actions workflow in `.github/workflows/ci.yml` automatically deploys
+commits pushed to `main` after all checks pass. It builds AMD64 frontend and
+backend images, pushes them to ECR using the commit SHA as an immutable tag,
+registers new ECS task-definition revisions, and waits for both ECS services to
+become stable.
+
+The workflow uses GitHub OIDC and a narrowly scoped AWS role. Before the first
+push to `main`, configure the GitHub `production` Environment and add this one
+secret to it:
+
+```text
+AWS_GITHUB_ACTIONS_ROLE_ARN=arn:aws:iam::<AWS_ACCOUNT_ID>:role/supplai-github-actions-deploy
+```
+
+The role needs permission to push to the two ECR repositories, read the four
+production secret metadata records, register task definitions, update the two
+ECS services, and wait for deployments. It does not need application secret
+values because ECS reads those directly from Secrets Manager.
+
+To create the role once, first make sure GitHub's OIDC provider exists in IAM:
+
+```bash
+aws iam get-open-id-connect-provider \
+  --open-id-connect-provider-arn arn:aws:iam::439777529311:oidc-provider/token.actions.githubusercontent.com \
+  --region us-east-1
+```
+
+If that command says the provider does not exist, create it in **IAM → Identity
+providers → Add provider** with provider URL
+`https://token.actions.githubusercontent.com` and audience
+`sts.amazonaws.com`. Then run:
+
+```bash
+aws iam create-role \
+  --role-name supplai-github-actions-deploy \
+  --assume-role-policy-document file://backend/aws/github-actions-deploy-trust-policy.json
+
+aws iam put-role-policy \
+  --role-name supplai-github-actions-deploy \
+  --policy-name SupplaiGitHubActionsDeploy \
+  --policy-document file://backend/aws/github-actions-deploy-policy.json
+```
+
+In GitHub, open **Settings → Environments → New environment**, name it
+`production`, and add the secret
+`AWS_GITHUB_ACTIONS_ROLE_ARN` with this value:
+
+```text
+arn:aws:iam::439777529311:role/supplai-github-actions-deploy
+```
+
+For extra safety, enable required reviewers on the `production` environment.
+The deployment then pauses for your approval after CI passes.
+
+Pull requests run validation only. A merge or push to `main` runs validation
+first and deploys only when validation succeeds. You can also start the workflow
+manually from GitHub Actions with **Run workflow**, but manual runs still use
+the same `main` deployment path.
+
+Follow [`GO_FORWARD_DEPLOYMENT.md`](GO_FORWARD_DEPLOYMENT.md) for the complete
+beginner deployment runbook. The focused service notes are
+[`frontend/DEPLOYMENT.md`](frontend/DEPLOYMENT.md) and
+[`backend/DEPLOYMENT.md`](backend/DEPLOYMENT.md). Local Docker PostgreSQL is
+development-only.
 
 The Next.js frontend is currently full-stack and owns authentication,
 server-rendered database queries, and route handlers. The AWS backend folder is

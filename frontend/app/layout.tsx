@@ -5,6 +5,10 @@ export const metadata: Metadata = {
   title: "Supplai — Inventory Operations",
   description: "Human-approved inventory operations for modern cafés.",
   manifest: "/manifest.webmanifest",
+  icons: {
+    icon: "/icon.svg",
+    apple: "/apple-icon.svg",
+  },
 };
 
 export const viewport: Viewport = {

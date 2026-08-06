@@ -2,7 +2,9 @@ name: CI
 on:
   pull_request:
   push: { branches: [main] }
-permissions: { contents: read }
+  workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -18,3 +20,137 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+
+  deploy:
+    name: Deploy to AWS ECS
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: validate
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    concurrency:
+      group: production-ecs-deploy
+      cancel-in-progress: false
+    env:
+      AWS_REGION: us-east-1
+      AWS_ACCOUNT_ID: "439777529311"
+      ECS_CLUSTER: supplai-production
+      FRONTEND_SERVICE: supplai-frontend
+      BACKEND_SERVICE: supplai-backend
+      IMAGE_TAG: git-${{ github.sha }}
+      AUTH_EMAIL_FROM: Supplai <no-reply@supplai-pilot.com>
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-region: ${{ env.AWS_REGION }}
+          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          role-session-name: github-actions-${{ github.run_id }}
+
+      - name: Log in to Amazon ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: frontend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/supplai-frontend:${{ env.IMAGE_TAG }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+      - name: Build and push backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/supplai-backend:${{ env.IMAGE_TAG }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+
+      - name: Look up production secret ARNs
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "DATABASE_URL_SECRET_ARN=$(aws secretsmanager describe-secret --secret-id supplai/production/database-url --query ARN --output text)" >> "$GITHUB_ENV"
+          echo "BETTER_AUTH_SECRET_ARN=$(aws secretsmanager describe-secret --secret-id supplai/production/better-auth-secret --query ARN --output text)" >> "$GITHUB_ENV"
+          echo "RESEND_API_KEY_ARN=$(aws secretsmanager describe-secret --secret-id supplai/production/resend-api-key --query ARN --output text)" >> "$GITHUB_ENV"
+          echo "GEMINI_API_KEY_ARN=$(aws secretsmanager describe-secret --secret-id supplai/production/gemini-api-key --query ARN --output text)" >> "$GITHUB_ENV"
+
+      - name: Render and register frontend task definition
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed \
+            -e "s|<AWS_ACCOUNT_ID>|$AWS_ACCOUNT_ID|g" \
+            -e "s|<AWS_REGION>|$AWS_REGION|g" \
+            -e "s|<IMAGE_TAG>|$IMAGE_TAG|g" \
+            -e "s|<DATABASE_URL_SECRET_ARN>|$DATABASE_URL_SECRET_ARN|g" \
+            -e "s|<BETTER_AUTH_SECRET_ARN>|$BETTER_AUTH_SECRET_ARN|g" \
+            -e "s|<RESEND_API_KEY_ARN>|$RESEND_API_KEY_ARN|g" \
+            -e "s|<GEMINI_API_KEY_ARN>|$GEMINI_API_KEY_ARN|g" \
+            -e "s|http://REPLACE_WITH_LOAD_BALANCER_URL|https://supplai-pilot.com|g" \
+            -e "s|REPLACE_WITH_AUTH_EMAIL_FROM|$AUTH_EMAIL_FROM|g" \
+            backend/aws/frontend-task-definition.json \
+            > "$RUNNER_TEMP/frontend-task-definition.json"
+          ! grep -Eq '<[^>]+>|REPLACE_WITH' "$RUNNER_TEMP/frontend-task-definition.json"
+          aws ecs register-task-definition \
+            --cli-input-json "file://$RUNNER_TEMP/frontend-task-definition.json" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text > "$RUNNER_TEMP/frontend-task-definition-arn"
+
+      - name: Render and register backend task definition
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed \
+            -e "s|<AWS_ACCOUNT_ID>|$AWS_ACCOUNT_ID|g" \
+            -e "s|<AWS_REGION>|$AWS_REGION|g" \
+            -e "s|<IMAGE_TAG>|$IMAGE_TAG|g" \
+            backend/aws/ecs-task-definition.json \
+            > "$RUNNER_TEMP/backend-task-definition.json"
+          ! grep -Eq '<[^>]+>|REPLACE_WITH' "$RUNNER_TEMP/backend-task-definition.json"
+          aws ecs register-task-definition \
+            --cli-input-json "file://$RUNNER_TEMP/backend-task-definition.json" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text > "$RUNNER_TEMP/backend-task-definition-arn"
+
+      - name: Deploy frontend service
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$FRONTEND_SERVICE" \
+            --task-definition "$(<"$RUNNER_TEMP/frontend-task-definition-arn")" \
+            --force-new-deployment
+
+      - name: Deploy backend service
+        shell: bash
+        run: |
+          set -euo pipefail
+          aws ecs update-service \
+            --cluster "$ECS_CLUSTER" \
+            --service "$BACKEND_SERVICE" \
+            --task-definition "$(<"$RUNNER_TEMP/backend-task-definition-arn")" \
+            --force-new-deployment
+
+      - name: Wait for ECS services to become stable
+        run: |
+          aws ecs wait services-stable \
+            --cluster "$ECS_CLUSTER" \
+            --services "$FRONTEND_SERVICE" "$BACKEND_SERVICE"
