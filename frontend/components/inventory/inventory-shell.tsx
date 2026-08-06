@@ -406,10 +406,6 @@ export function InventoryShell({
           <div>
             <p className="eyebrow">STOCK CONTROL</p>
             <h1>Inventory</h1>
-            <p className="subtitle">
-              See what is on hand, what needs attention, and when it was last
-              counted.
-            </p>
           </div>
           <div className="inventory-header-actions">
             <Button asChild variant="outline">

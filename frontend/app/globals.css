@@ -4435,3 +4435,198 @@ footer a {
     text-overflow: ellipsis;
   }
 }
+
+.analytics-content {
+  display: grid;
+  gap: 18px;
+}
+.analytics-period-grid,
+.analytics-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.analytics-period-card > .p-6:first-child {
+  padding-bottom: 10px;
+}
+.analytics-kicker {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.analytics-period-card h3 {
+  margin: 0;
+  color: var(--primary);
+  font-family: Georgia, serif;
+  font-size: 30px;
+  font-weight: 500;
+}
+.analytics-muted {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.analytics-fact-grid,
+.analytics-overview-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.analytics-fact-grid > div,
+.analytics-overview-grid > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.analytics-fact-grid svg,
+.analytics-overview-grid svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: #6b907f;
+}
+.analytics-fact-grid span,
+.analytics-overview-grid span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.analytics-fact-grid strong,
+.analytics-overview-grid strong {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.analytics-chart {
+  display: grid;
+  align-items: end;
+  gap: 10px;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  min-height: 220px;
+}
+.analytics-bar-column {
+  display: grid;
+  align-items: end;
+  gap: 5px;
+  min-width: 0;
+  text-align: center;
+}
+.analytics-bar-column > span,
+.analytics-bar-column small {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.analytics-bar-column strong {
+  color: var(--foreground);
+  font-size: 11px;
+}
+.analytics-bar-track {
+  display: flex;
+  align-items: end;
+  height: 120px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #eef3ef;
+}
+.analytics-bar-track i {
+  display: block;
+  width: 100%;
+  border-radius: 5px;
+  background: linear-gradient(180deg, #6c9a86, #2f604d);
+}
+.analytics-list {
+  display: grid;
+  gap: 0;
+}
+.analytics-list-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.analytics-list-row:last-child {
+  border-bottom: 0;
+}
+.analytics-list-row span {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+.analytics-list-row strong {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.analytics-list-row small {
+  color: var(--muted-foreground);
+  font-size: 10px;
+}
+.analytics-empty {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+@media (max-width: 720px) {
+  .analytics-period-grid,
+  .analytics-grid {
+    grid-template-columns: 1fr;
+  }
+  .analytics-chart {
+    overflow-x: auto;
+    grid-template-columns: repeat(6, 52px);
+    padding-bottom: 4px;
+  }
+  .analytics-period-card h3 {
+    font-size: 27px;
+  }
+  .mobile-nav {
+    justify-content: flex-start;
+    overflow-x: auto;
+  }
+  .mobile-nav a {
+    flex: 0 0 64px;
+  }
+}
+
+/* Use a clear, aligned sans-serif face for values and quantities. */
+.metric-card strong,
+.period-total,
+.analytics-period-card h3,
+.orders-summary strong,
+.receipt-total,
+.receipt-card-footer-total,
+.count-proposal > div strong {
+  font-family: Manrope, Inter, ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.025em;
+}
+.metric-card strong,
+.analytics-period-card h3,
+.receipt-total,
+.count-proposal > div strong {
+  font-weight: 700;
+}
+.analytics-fact-grid strong,
+.analytics-overview-grid strong,
+.analytics-list-row > strong {
+  font-family: Manrope, Inter, ui-sans-serif, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums lining-nums;
+}

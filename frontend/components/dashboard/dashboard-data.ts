@@ -23,6 +23,7 @@ export const navigation: NavigationItem[] = [
   { label: "Inventory", href: "/inventory", icon: Box },
   { label: "Orders", href: "/orders", icon: ShoppingBag },
   { label: "Receipts", href: "/receipts", icon: ReceiptText },
+  { label: "Analytics", href: "/analytics", icon: BarChart3 },
   { label: "Team", href: "/company/workers", icon: Users },
 ];
 

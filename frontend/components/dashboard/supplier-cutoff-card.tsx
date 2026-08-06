@@ -32,10 +32,7 @@ export function SupplierCutoffCard({
   return (
     <Card className="panel cutoff" id="orders">
       <CardHeader>
-        <SectionHeading
-          title="Today’s supplier cutoffs"
-          description="Orders to confirm before the deadline."
-        />
+        <SectionHeading title="Today’s supplier cutoffs" />
       </CardHeader>
       <CardContent>
         <div className="cutoff-row">

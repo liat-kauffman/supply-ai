@@ -11,9 +11,14 @@ export function MobileNavigation({
 }) {
   const pathname = usePathname();
   const mobileItems = items.filter((item) =>
-    ["/", "/inventory", "/orders", "/receipts", "/company/workers"].includes(
-      item.href,
-    ),
+    [
+      "/",
+      "/inventory",
+      "/orders",
+      "/receipts",
+      "/analytics",
+      "/company/workers",
+    ].includes(item.href),
   );
 
   return (

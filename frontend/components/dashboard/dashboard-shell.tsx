@@ -19,7 +19,6 @@ import { DashboardHeader } from "./dashboard-header";
 import { InsightCard } from "./insight-card";
 import { MetricsGrid } from "./metric-card";
 import { MobileNavigation } from "./mobile-navigation";
-import { PeriodSummary } from "./period-summary";
 import { Sidebar } from "./sidebar";
 import { StockHealthCard } from "./stock-health-card";
 import { SupplierCutoffCard } from "./supplier-cutoff-card";
@@ -113,10 +112,6 @@ export function DashboardShell({
             </Button>
           </div>
         ) : null}
-        <PeriodSummary
-          month={dashboard.periodSummary.month}
-          year={dashboard.periodSummary.year}
-        />
         <MetricsGrid metrics={metrics} />
         <div className="dashboard-grid">
           <AttentionPanel tasks={visibleTasks} onTaskOpen={acknowledgeTask} />

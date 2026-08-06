@@ -531,10 +531,6 @@ export function OrdersShell({
           <div>
             <p className="eyebrow">SUPPLIER BASKETS</p>
             <h1>Orders</h1>
-            <p className="subtitle">
-              Adjust package quantities, request approval, and turn approved
-              baskets into supplier-ready lists.
-            </p>
           </div>
           <div className="orders-header-actions">
             <Button

@@ -3,10 +3,6 @@ import { prisma } from "@supply/database";
 import { displayText, finiteNumber } from "@/lib/display";
 
 export interface DashboardData {
-  periodSummary: {
-    month: PeriodSummaryData;
-    year: PeriodSummaryData;
-  };
   headerEyebrow: string;
   metrics: Array<{
     label: string;
@@ -53,13 +49,6 @@ export interface DashboardData {
     confidence: number;
     dataDays: number | null;
   };
-}
-
-export interface PeriodSummaryData {
-  spend: number;
-  receiptCount: number;
-  approvedCount: number;
-  currency: string;
 }
 
 function formatCurrency(value: number, currency: string) {
@@ -154,8 +143,6 @@ export async function getDashboardData(
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
   const twoWeeksAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const yearStart = new Date(now.getFullYear(), 0, 1);
 
   const [profile, products, receipts, suppliers] = await Promise.all([
     prisma.businessProfile.findUnique({
@@ -254,27 +241,6 @@ export async function getDashboardData(
   const pendingReceipts = receipts.filter(
     (receipt) => receipt.status.toUpperCase() !== "APPROVED",
   );
-  const summarizePeriod = (start: Date): PeriodSummaryData => {
-    const periodReceipts = receipts.filter(
-      (receipt) => receipt.receiptDate >= start && receipt.receiptDate <= now,
-    );
-    return {
-      spend: periodReceipts.reduce(
-        (total, receipt) =>
-          total +
-          receipt.lines.reduce(
-            (sum, line) => sum + finiteNumber(line.lineTotal),
-            0,
-          ),
-        0,
-      ),
-      receiptCount: periodReceipts.length,
-      approvedCount: periodReceipts.filter(
-        (receipt) => receipt.status.toUpperCase() === "APPROVED",
-      ).length,
-      currency,
-    };
-  };
   const weekReceipts = receipts.filter(
     (receipt) => receipt.receiptDate >= weekAgo,
   );
@@ -568,10 +534,6 @@ export async function getDashboardData(
       };
 
   return {
-    periodSummary: {
-      month: summarizePeriod(monthStart),
-      year: summarizePeriod(yearStart),
-    },
     headerEyebrow: headerEyebrow(now, timeZone),
     metrics,
     tasks: tasks.slice(0, 3),
