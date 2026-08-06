@@ -22,7 +22,10 @@
         { "name": "NODE_ENV", "value": "production" },
         { "name": "PORT", "value": "3000" },
         { "name": "HOSTNAME", "value": "0.0.0.0" },
-        { "name": "BETTER_AUTH_URL", "value": "http://REPLACE_WITH_LOAD_BALANCER_URL" },
+        {
+          "name": "BETTER_AUTH_URL",
+          "value": "http://REPLACE_WITH_LOAD_BALANCER_URL"
+        },
         { "name": "AUTH_EMAIL_FROM", "value": "REPLACE_WITH_AUTH_EMAIL_FROM" },
         { "name": "GEMINI_MODEL", "value": "gemini-3.5-flash-lite" },
         { "name": "GEMINI_FALLBACK_MODEL", "value": "gemini-3.6-flash" },
