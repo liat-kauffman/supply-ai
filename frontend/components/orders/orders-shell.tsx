@@ -524,8 +524,6 @@ export function OrdersShell({
     <div className="app-shell orders-shell">
       <Sidebar
         items={navigation}
-        activeHref="/orders"
-        onNavigate={() => undefined}
         user={{ initials, name: userName, subtitle: companyName }}
       />
       <main className="orders-main">
@@ -1472,13 +1470,11 @@ export function OrdersShell({
         )}
       </main>
       <MobileNavigation
-        activeHref="/orders"
         items={navigation.map(({ label, href, icon }) => ({
           label,
           href,
           icon,
         }))}
-        onNavigate={() => undefined}
       />
     </div>
   );

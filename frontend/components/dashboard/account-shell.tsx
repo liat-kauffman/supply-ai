@@ -32,8 +32,6 @@ export function AccountShell({
     <div className="app-shell">
       <Sidebar
         items={navigation}
-        activeHref=""
-        onNavigate={() => undefined}
         user={{
           initials: initialsFor(userName),
           name: userName,
@@ -56,8 +54,6 @@ export function AccountShell({
           href,
           icon,
         }))}
-        activeHref=""
-        onNavigate={() => undefined}
       />
     </div>
   );

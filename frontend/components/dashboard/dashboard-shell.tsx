@@ -33,12 +33,10 @@ export function DashboardShell({
   userName: string;
   dashboard: DashboardData;
 }) {
-  const activeHref = useDashboardStore((state) => state.activeHref);
   const acknowledgedTasks = useDashboardStore(
     (state) => state.acknowledgedTasks,
   );
   const message = useDashboardStore((state) => state.message);
-  const navigate = useDashboardStore((state) => state.navigate);
   const acknowledgeTask = useDashboardStore((state) => state.acknowledgeTask);
   const showMessage = useDashboardStore((state) => state.showMessage);
   const clearMessage = useDashboardStore((state) => state.clearMessage);
@@ -83,8 +81,6 @@ export function DashboardShell({
     <div className="app-shell">
       <Sidebar
         items={navigation}
-        activeHref={activeHref}
-        onNavigate={navigate}
         user={{
           initials,
           name: userName,
@@ -144,8 +140,6 @@ export function DashboardShell({
           href,
           icon,
         }))}
-        activeHref={activeHref}
-        onNavigate={navigate}
       />
     </div>
   );

@@ -11,12 +11,10 @@ import type { NavigationItem } from "./types";
 
 interface SidebarProps {
   items: NavigationItem[];
-  activeHref: string;
-  onNavigate: (href: string) => void;
   user: { initials: string; name: string; subtitle: string };
 }
 
-export function Sidebar({ items, onNavigate, user }: SidebarProps) {
+export function Sidebar({ items, user }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const currentHref = pathname === "/" ? "/" : pathname;
@@ -41,7 +39,6 @@ export function Sidebar({ items, onNavigate, user }: SidebarProps) {
             className={href === currentHref ? "active" : undefined}
             href={href}
             key={href}
-            onClick={() => onNavigate(href)}
             aria-current={href === currentHref ? "page" : undefined}
           >
             <ItemIcon />

@@ -118,8 +118,6 @@ export function ReceiptsShell({
     <div className="app-shell receipts-shell">
       <Sidebar
         items={navigation}
-        activeHref="/receipts"
-        onNavigate={() => undefined}
         user={{ initials, name: userName, subtitle: companyName }}
       />
       <main className="receipts-main">
@@ -497,13 +495,11 @@ export function ReceiptsShell({
         )}
       </main>
       <MobileNavigation
-        activeHref="/receipts"
         items={navigation.map(({ label, href, icon }) => ({
           label,
           href,
           icon,
         }))}
-        onNavigate={() => undefined}
       />
     </div>
   );

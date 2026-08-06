@@ -395,8 +395,6 @@ export function InventoryShell({
     <div className="app-shell inventory-shell">
       <Sidebar
         items={navigation}
-        activeHref="/inventory"
-        onNavigate={() => undefined}
         user={{
           initials: userInitials,
           name: userName,
@@ -699,13 +697,11 @@ export function InventoryShell({
         </p>
       </main>
       <MobileNavigation
-        activeHref="/inventory"
         items={navigation.map(({ label, href, icon }) => ({
           label,
           href,
           icon,
         }))}
-        onNavigate={() => undefined}
       />
 
       {selectedItem ? (

@@ -6,11 +6,8 @@ import type { LucideIcon } from "lucide-react";
 
 export function MobileNavigation({
   items,
-  onNavigate,
 }: {
   items: Array<{ label: string; href: string; icon: LucideIcon }>;
-  activeHref: string;
-  onNavigate: (href: string) => void;
 }) {
   const pathname = usePathname();
   const mobileItems = items.filter((item) =>
@@ -28,7 +25,6 @@ export function MobileNavigation({
             className={item.href === pathname ? "active" : undefined}
             href={item.href}
             key={item.href}
-            onClick={() => onNavigate(item.href)}
             aria-current={item.href === pathname ? "page" : undefined}
           >
             <Icon />
