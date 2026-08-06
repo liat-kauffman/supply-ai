@@ -46,12 +46,12 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials with OIDC
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: arn:aws:iam::439777529311:role/supplai-github-actions-deploy
-          role-session-name: github-actions-${{ github.run_id }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Log in to Amazon ECR
         id: ecr

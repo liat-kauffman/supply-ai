@@ -140,11 +140,10 @@ job. Once its AWS role is configured, the normal release process is:
 5. Watch the **Deploy to AWS ECS** job.
 6. Test `https://supplai-pilot.com` after both ECS services become stable.
 
-The workflow uses GitHub's short-lived OIDC credentials. Do not add
-`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, database passwords, API keys, or
-generated task-definition files to GitHub. No AWS credential secret is needed.
-The workflow contains only the non-secret
-IAM role ARN and receives short-lived credentials through OIDC.
+The workflow uses the dedicated IAM user's `AWS_ACCESS_KEY_ID` and
+`AWS_SECRET_ACCESS_KEY` repository secrets. Do not add database passwords, API
+keys, or generated task-definition files to GitHub. Rotate the IAM access key
+periodically and keep its permissions limited to deployment operations.
 
 The first-time AWS/GitHub setup is documented in the root README under
 **Automatic deployment**. Production deployment is intentionally attached to
