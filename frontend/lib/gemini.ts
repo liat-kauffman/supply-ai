@@ -28,15 +28,15 @@ export async function generateGeminiContent({
 }): Promise<GeminiResult> {
   const models = [
     ...new Set([
-      process.env.GEMINI_MODEL ?? "gemini-3.5-flash",
-      process.env.GEMINI_FALLBACK_MODEL ?? "gemini-2.5-flash",
+      process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite",
+      process.env.GEMINI_FALLBACK_MODEL ?? "gemini-3.6-flash",
     ]),
   ];
   let lastResult: GeminiResult = {
     ok: false,
     status: 503,
     payload: null,
-    model: models[0] ?? "gemini-3.5-flash",
+    model: models[0] ?? "gemini-3.5-flash-lite",
     errorMessage: "Gemini is temporarily unavailable",
   };
 

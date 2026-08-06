@@ -10,7 +10,8 @@
     "AUTH_EMAIL_WEBHOOK_URL",
     "GEMINI_API_KEY",
     "GEMINI_MODEL",
-    "GEMINI_FALLBACK_MODEL"
+    "GEMINI_FALLBACK_MODEL",
+    "ENABLE_DEMO_MODE"
   ],
   "tasks": {
     "dev": { "cache": false, "persistent": true },
@@ -20,6 +21,6 @@
     },
     "lint": { "dependsOn": ["^lint"] },
     "typecheck": { "dependsOn": ["^typecheck"] },
-    "test": { "dependsOn": ["^build"], "outputs": ["coverage/**"] }
+    "test": { "dependsOn": ["^build"] }
   }
 }

@@ -2,7 +2,7 @@ import { prisma } from "@supply/database";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { ApiAccessError, requireApiCompany } from "@/lib/auth/api";
+import { apiErrorResponse, requireApiCompany } from "@/lib/auth/api";
 import { getInventoryItem } from "@/lib/inventory";
 
 const createItemSchema = z.object({
@@ -124,15 +124,6 @@ export async function POST(request: Request) {
       { status: 201 },
     );
   } catch (error) {
-    if (error instanceof ApiAccessError)
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
-    console.error(error);
-    return NextResponse.json(
-      { error: "Unable to add this inventory item" },
-      { status: 500 },
-    );
+    return apiErrorResponse(error, "Unable to add this inventory item");
   }
 }
