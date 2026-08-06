@@ -209,13 +209,9 @@ backend images, pushes them to ECR using the commit SHA as an immutable tag,
 registers new ECS task-definition revisions, and waits for both ECS services to
 become stable.
 
-The workflow uses GitHub OIDC and a narrowly scoped AWS role. Before the first
-push to `main`, add this one repository secret under **Settings → Secrets and
-variables → Actions**:
-
-```text
-AWS_GITHUB_ACTIONS_ROLE_ARN=arn:aws:iam::<AWS_ACCOUNT_ID>:role/supplai-github-actions-deploy
-```
+The workflow uses GitHub OIDC and a narrowly scoped AWS role. The role ARN is
+declared in the workflow because an IAM role ARN is not a credential. No AWS
+access keys or AWS role secrets are needed in GitHub.
 
 The role needs permission to push to the two ECR repositories, read the four
 production secret metadata records, register task definitions, update the two
@@ -244,13 +240,6 @@ aws iam put-role-policy \
   --role-name supplai-github-actions-deploy \
   --policy-name SupplaiGitHubActionsDeploy \
   --policy-document file://backend/aws/github-actions-deploy-policy.json
-```
-
-In GitHub, add the repository secret `AWS_GITHUB_ACTIONS_ROLE_ARN` with this
-value:
-
-```text
-arn:aws:iam::439777529311:role/supplai-github-actions-deploy
 ```
 
 The trust policy restricts this role to pushes from the `main` branch of this
