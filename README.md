@@ -210,8 +210,8 @@ registers new ECS task-definition revisions, and waits for both ECS services to
 become stable.
 
 The workflow uses GitHub OIDC and a narrowly scoped AWS role. Before the first
-push to `main`, configure the GitHub `production` Environment and add this one
-secret to it:
+push to `main`, add this one repository secret under **Settings → Secrets and
+variables → Actions**:
 
 ```text
 AWS_GITHUB_ACTIONS_ROLE_ARN=arn:aws:iam::<AWS_ACCOUNT_ID>:role/supplai-github-actions-deploy
@@ -246,16 +246,15 @@ aws iam put-role-policy \
   --policy-document file://backend/aws/github-actions-deploy-policy.json
 ```
 
-In GitHub, open **Settings → Environments → New environment**, name it
-`production`, and add the secret
-`AWS_GITHUB_ACTIONS_ROLE_ARN` with this value:
+In GitHub, add the repository secret `AWS_GITHUB_ACTIONS_ROLE_ARN` with this
+value:
 
 ```text
 arn:aws:iam::439777529311:role/supplai-github-actions-deploy
 ```
 
-For extra safety, enable required reviewers on the `production` environment.
-The deployment then pauses for your approval after CI passes.
+The trust policy restricts this role to pushes from the `main` branch of this
+repository.
 
 Pull requests run validation only. A merge or push to `main` runs validation
 first and deploys only when validation succeeds. You can also start the workflow

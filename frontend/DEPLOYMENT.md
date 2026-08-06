@@ -142,8 +142,8 @@ job. Once its AWS role is configured, the normal release process is:
 
 The workflow uses GitHub's short-lived OIDC credentials. Do not add
 `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, database passwords, API keys, or
-generated task-definition files to GitHub. Add the production environment secret
-`AWS_GITHUB_ACTIONS_ROLE_ARN` containing the ARN of the deployment role instead.
+generated task-definition files to GitHub. Add the repository secret
+`AWS_GITHUB_ACTIONS_ROLE_ARN` containing the ARN of the deployment role.
 
 The first-time AWS/GitHub setup is documented in the root README under
 **Automatic deployment**. Production deployment is intentionally attached to
