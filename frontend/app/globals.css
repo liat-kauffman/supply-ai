@@ -1408,6 +1408,287 @@ footer a {
     font-size: 10px;
   }
 }
+
+/* Shared product rhythm: readable defaults for every authenticated screen. */
+.sidebar nav a,
+.sidebar-bottom > a {
+  min-height: 44px;
+  font-size: 14px;
+}
+.profile-info {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+.profile strong {
+  font-size: 12px;
+}
+.profile small {
+  font-size: 10px;
+}
+.metric-card span {
+  font-size: 11px;
+}
+.metric-card strong {
+  font-size: 25px;
+}
+.metric-card small {
+  font-size: 10px;
+  line-height: 1.4;
+}
+.task-copy strong,
+.cutoff-row strong,
+.next-cutoff strong {
+  font-size: 12px;
+}
+.task-copy span,
+.cutoff-row span,
+.next-cutoff span {
+  font-size: 10px;
+}
+.pill,
+.status {
+  font-size: 10px !important;
+}
+.table-head,
+.inventory-table-head,
+.receipt-table th,
+.order-basket-table th {
+  font-size: 10px;
+}
+.stock-row strong,
+.inventory-row,
+.receipt-table td,
+.order-basket-table td {
+  font-size: 12px;
+}
+.stock-row span,
+.inventory-row small,
+.receipt-table td small,
+.order-basket-table td small {
+  font-size: 10px;
+}
+.account-page {
+  max-width: 1080px;
+}
+.page-header {
+  margin-bottom: 28px;
+}
+.account-grid,
+.team-grid {
+  display: grid;
+  gap: 18px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.team-grid > :last-child {
+  grid-column: 1 / -1;
+}
+.profile-details,
+.workspace-summary,
+.team-list {
+  display: grid;
+  gap: 18px;
+}
+.profile-hero,
+.workspace-summary,
+.team-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.profile-avatar,
+.workspace-mark,
+.team-avatar {
+  width: 48px;
+  height: 48px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: var(--primary);
+  background: #e2eee8;
+  font-size: 15px;
+  font-weight: 800;
+}
+.profile-hero h2,
+.workspace-summary h2 {
+  margin: 0 0 4px;
+  color: var(--primary);
+  font-family: Georgia, serif;
+  font-size: 20px;
+  font-weight: 500;
+}
+.profile-hero p,
+.workspace-summary p,
+.team-row span {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+.profile-facts {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+}
+.profile-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+}
+.profile-facts dt,
+.profile-facts dd {
+  margin: 0;
+  font-size: 12px;
+}
+.profile-facts dt {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted-foreground);
+}
+.profile-facts dt svg {
+  width: 15px;
+  height: 15px;
+}
+.profile-facts dd {
+  color: var(--foreground);
+  font-weight: 700;
+  text-align: right;
+}
+.sign-out-button {
+  justify-self: start;
+}
+.workspace-summary {
+  grid-template-columns: auto 1fr;
+}
+.workspace-summary > .inline-flex {
+  grid-column: 1 / -1;
+  justify-self: start;
+}
+.team-row {
+  min-width: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+}
+.team-row:last-child {
+  border-bottom: 0;
+}
+.team-row > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  flex: 1;
+}
+.team-row strong {
+  overflow: hidden;
+  color: var(--foreground);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.team-row span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.team-avatar.pending {
+  color: #98713e;
+  background: #f7ecd9;
+}
+.empty-state {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+.period-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.period-card-heading {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+.period-icon {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #527485;
+  background: #e8eef1;
+}
+.period-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.period-card h3 {
+  margin: 0 0 3px;
+  color: var(--primary);
+  font-family: Georgia, serif;
+  font-size: 16px;
+  font-weight: 600;
+}
+.period-card-heading p {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.period-total {
+  display: block;
+  margin-bottom: 14px;
+  color: var(--primary);
+  font-family: Georgia, serif;
+  font-size: 28px;
+  font-weight: 500;
+}
+.period-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+.period-facts span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.period-facts svg {
+  width: 14px;
+  height: 14px;
+}
+@media (max-width: 720px) {
+  .account-grid,
+  .team-grid,
+  .period-summary {
+    grid-template-columns: 1fr;
+  }
+  .team-grid > :last-child {
+    grid-column: auto;
+  }
+  .account-page {
+    padding-top: 24px;
+  }
+  .profile-facts > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .profile-facts dd {
+    text-align: left;
+  }
+  .period-total {
+    font-size: 25px;
+  }
+}
 @media (max-width: 430px) {
   .metrics {
     display: flex;
@@ -3975,5 +4256,182 @@ footer a {
   }
   .admin-grid {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Final mobile comfort pass. Keep primary content readable without horizontal spill. */
+@media (max-width: 720px) {
+  html,
+  body {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  main {
+    padding: 20px 14px 98px;
+  }
+
+  main > header,
+  .receipts-header,
+  .inventory-header,
+  .orders-header,
+  .page-header {
+    gap: 14px;
+    margin-bottom: 22px;
+  }
+
+  main > header:not(.page-header),
+  .receipts-header,
+  .inventory-header,
+  .orders-header {
+    flex-direction: column;
+  }
+
+  h1,
+  .receipts-header h1 {
+    max-width: 100%;
+    font-size: 26px;
+    line-height: 1.08;
+  }
+
+  .subtitle,
+  .receipts-header .subtitle,
+  .orders-header .subtitle {
+    max-width: 42rem;
+    font-size: 11px;
+    line-height: 1.5;
+  }
+
+  .header-actions,
+  .receipts-actions,
+  .inventory-header-actions,
+  .orders-header-actions,
+  .order-crud-actions {
+    width: 100%;
+  }
+
+  .header-actions {
+    justify-content: flex-end;
+  }
+
+  .receipts-actions,
+  .inventory-header-actions,
+  .orders-header-actions,
+  .order-crud-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .receipts-actions > *,
+  .inventory-header-actions > *,
+  .orders-header-actions > *,
+  .order-crud-actions > * {
+    width: 100%;
+    min-height: 42px;
+  }
+
+  .period-card,
+  .metric-card,
+  .panel,
+  .orders-summary article,
+  .receipts-summary article {
+    min-width: 0;
+  }
+
+  .period-card,
+  .panel > div:first-child,
+  .panel > div:last-child {
+    padding-inline: 16px;
+  }
+
+  .team-row {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .team-row > .pill,
+  .team-row > .status {
+    margin-left: 62px;
+  }
+
+  .workspace-summary {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .workspace-summary > .inline-flex,
+  .sign-out-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .mobile-nav {
+    height: calc(68px + env(safe-area-inset-bottom));
+    padding: 4px 4px env(safe-area-inset-bottom);
+  }
+
+  .mobile-nav a {
+    min-height: 56px;
+    padding: 8px 2px 5px;
+    font-size: 9px;
+  }
+
+  .mobile-nav a svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
+@media (max-width: 430px) {
+  main {
+    padding-inline: 12px;
+  }
+
+  .eyebrow {
+    margin-bottom: 5px;
+    font-size: 9px;
+  }
+
+  h1,
+  .receipts-header h1 {
+    font-size: 24px;
+  }
+
+  .header-actions {
+    justify-content: stretch;
+  }
+
+  .header-actions .icon-button,
+  .header-actions .primary {
+    flex: 1;
+  }
+
+  .header-actions .primary {
+    width: auto;
+    font-size: 14px;
+  }
+
+  .header-actions .primary .action-copy {
+    display: inline;
+  }
+
+  .period-total {
+    margin-bottom: 11px;
+    font-size: 23px;
+  }
+
+  .period-facts {
+    gap: 9px 14px;
+    font-size: 10px;
+  }
+
+  .mobile-nav a {
+    font-size: 8px;
+  }
+
+  .mobile-nav a span {
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

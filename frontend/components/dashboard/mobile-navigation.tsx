@@ -1,17 +1,22 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { LucideIcon } from "lucide-react";
 
 export function MobileNavigation({
   items,
-  activeHref,
   onNavigate,
 }: {
   items: Array<{ label: string; href: string; icon: LucideIcon }>;
   activeHref: string;
   onNavigate: (href: string) => void;
 }) {
+  const pathname = usePathname();
   const mobileItems = items.filter((item) =>
-    ["/", "/inventory", "/orders", "/receipts"].includes(item.href),
+    ["/", "/inventory", "/orders", "/receipts", "/company/workers"].includes(
+      item.href,
+    ),
   );
 
   return (
@@ -20,10 +25,11 @@ export function MobileNavigation({
         const Icon = item.icon;
         return (
           <Link
-            className={item.href === activeHref ? "active" : undefined}
+            className={item.href === pathname ? "active" : undefined}
             href={item.href}
             key={item.href}
             onClick={() => onNavigate(item.href)}
+            aria-current={item.href === pathname ? "page" : undefined}
           >
             <Icon />
             <span>{item.label}</span>

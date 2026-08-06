@@ -19,8 +19,8 @@ export function AttentionPanel({
         <SectionHeading
           title="Needs your attention"
           description="AI suggestions always wait for your approval."
-          actionLabel="View all"
-          actionHref="#activity"
+          actionLabel="View receipts"
+          actionHref="/receipts"
         />
       </CardHeader>
       <CardContent className="task-list">

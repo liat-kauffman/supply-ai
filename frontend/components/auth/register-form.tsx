@@ -6,6 +6,10 @@ import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 
+function readableError(value: unknown, fallback: string) {
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
 export function RegisterForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -19,37 +23,64 @@ export function RegisterForm() {
     setPending(true);
     setError(null);
     const form = new FormData(event.currentTarget);
-    const result = await authClient.signUp.email({
-      name: String(form.get("name")),
-      email: String(form.get("email")),
-      password: String(form.get("password")),
-      callbackURL: "/onboarding/company",
-    });
-    setPending(false);
-    if (result.error)
-      return setError(result.error.message ?? "Unable to create account");
-    setVerificationEmail(String(form.get("email")));
-    setMessage(
-      "Check your email to verify your account, then continue company setup.",
-    );
+    const email = String(form.get("email") ?? "").trim();
+
+    try {
+      const result = await authClient.signUp.email({
+        name: String(form.get("name") ?? "").trim(),
+        email,
+        password: String(form.get("password") ?? ""),
+        callbackURL: "/onboarding/company",
+      });
+      if (result.error) {
+        const message =
+          result.error.code === "USER_ALREADY_EXISTS"
+            ? "An account already exists for this email. Try signing in or reset your password."
+            : readableError(
+                result.error.message,
+                "Unable to create account. Please try again.",
+              );
+        return setError(message);
+      }
+      setVerificationEmail(email);
+      setMessage(
+        "Check your email to verify your account, then continue company setup.",
+      );
+    } catch {
+      setError(
+        "We could not reach the registration service. Check your connection and try again.",
+      );
+    } finally {
+      setPending(false);
+    }
   }
 
   async function resendVerificationEmail() {
     if (!verificationEmail) return;
     setPending(true);
     setError(null);
-    const result = await authClient.sendVerificationEmail({
-      email: verificationEmail,
-      callbackURL: "/onboarding/company",
-    });
-    setPending(false);
-    if (result.error)
-      return setError(
-        result.error.message ?? "Unable to resend verification email",
+    try {
+      const result = await authClient.sendVerificationEmail({
+        email: verificationEmail,
+        callbackURL: "/onboarding/company",
+      });
+      if (result.error)
+        return setError(
+          readableError(
+            result.error.message,
+            "Unable to resend verification email",
+          ),
+        );
+      setMessage(
+        "A new verification email was sent. Check your inbox and spam folder.",
       );
-    setMessage(
-      "A new verification email was sent. Check your inbox and spam folder.",
-    );
+    } catch {
+      setError(
+        "We could not reach the email service. Check your connection and try again.",
+      );
+    } finally {
+      setPending(false);
+    }
   }
 
   return (
