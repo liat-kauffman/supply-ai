@@ -40,6 +40,7 @@ import {
   finiteNumberOrNull,
 } from "@/lib/display";
 import { type InventoryItem, type InventoryStatus } from "./inventory-data";
+import { AreaPhotoScanner } from "./area-photo-scanner";
 
 const filters: Array<{ label: string; value: "all" | InventoryStatus }> = [
   { label: "All items", value: "all" },
@@ -61,10 +62,12 @@ const ITEMS_PER_PAGE = 10;
 export function InventoryShell({
   companyName,
   initialItems,
+  storageAreas,
   userName,
 }: {
   companyName: string;
   initialItems: InventoryItem[];
+  storageAreas: Array<{ id: string; name: string; location: { name: string } }>;
   userName: string;
 }) {
   const [items, setItems] = useState(initialItems);
@@ -76,6 +79,7 @@ export function InventoryShell({
   const [category, setCategory] = useState("all");
   const [supplier, setSupplier] = useState("all");
   const [isAdding, setIsAdding] = useState(false);
+  const [isScanningArea, setIsScanningArea] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isCountSaving, setIsCountSaving] = useState(false);
   const [isItemSaving, setIsItemSaving] = useState(false);
@@ -408,6 +412,10 @@ export function InventoryShell({
             <h1>Inventory</h1>
           </div>
           <div className="inventory-header-actions">
+            <Button onClick={() => setIsScanningArea(true)} variant="outline">
+              <Camera />
+              <span className="action-copy">Scan area with AI</span>
+            </Button>
             <Button asChild variant="outline">
               <Link href="/receipts/import">
                 <ReceiptText />
@@ -699,6 +707,23 @@ export function InventoryShell({
           icon,
         }))}
       />
+
+      {isScanningArea ? (
+        <AreaPhotoScanner
+          storageAreas={storageAreas}
+          onApplied={(nextItems) => {
+            setItems((current) =>
+              current.map(
+                (item) =>
+                  nextItems.find((nextItem) => nextItem.id === item.id) ?? item,
+              ),
+            );
+            setMessage("The approved area counts were saved to inventory.");
+            setIsScanningArea(false);
+          }}
+          onClose={() => setIsScanningArea(false)}
+        />
+      ) : null}
 
       {selectedItem ? (
         <div className="inventory-modal-backdrop" onMouseDown={closeItem}>
