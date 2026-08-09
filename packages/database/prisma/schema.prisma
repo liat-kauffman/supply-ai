@@ -55,6 +55,7 @@ model BusinessProfile {
   movements             InventoryMovement[]
   auditEvents           AuditEvent[]
   orderBasketRequests   OrderBasketRequest[]
+  inventoryScans        InventoryScan[]
 }
 
 model User {
@@ -78,6 +79,8 @@ model User {
   auditEvents   AuditEvent[]
   requestedOrderBaskets OrderBasketRequest[] @relation("OrderBasketRequester")
   reviewedOrderBaskets  OrderBasketRequest[] @relation("OrderBasketReviewer")
+  createdInventoryScans InventoryScan[]      @relation("InventoryScanCreator")
+  reviewedInventoryScans InventoryScan[]     @relation("InventoryScanReviewer")
 }
 
 model Session {
@@ -193,6 +196,7 @@ model StorageArea {
   active      Boolean   @default(true)
   location    Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
   products    Product[]
+  inventoryScans InventoryScan[]
 
   @@index([locationId])
 }
@@ -391,4 +395,25 @@ model OrderBasketRequestLine {
 
   @@unique([requestId, productId])
   @@index([productId])
+}
+
+model InventoryScan {
+  id                String      @id @default(cuid())
+  businessId        String
+  storageAreaId     String?
+  createdById       String
+  reviewedById      String?
+  status            String      @default("PENDING")
+  observations      Json
+  globalWarnings    Json
+  unrecognizedItems Json
+  createdAt         DateTime    @default(now())
+  reviewedAt        DateTime?
+  business          BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  storageArea       StorageArea? @relation(fields: [storageAreaId], references: [id], onDelete: SetNull)
+  createdBy         User        @relation("InventoryScanCreator", fields: [createdById], references: [id])
+  reviewedBy        User?       @relation("InventoryScanReviewer", fields: [reviewedById], references: [id])
+
+  @@index([businessId, status, createdAt])
+  @@index([createdById, createdAt])
 }

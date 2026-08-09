@@ -138,7 +138,7 @@ export async function PATCH(
             supplierSku: link.supplierSku,
             unit: link.product.baseUnit,
             packageCount: item.packageCount,
-            requestedQuantity: item.requestedQuantity,
+            requestedQuantity: item.packageCount * unitsPerPackage,
             unitsPerPackage,
             latestPackagePrice: price,
             estimatedCost:

@@ -1767,6 +1767,60 @@ footer a {
 .inventory-message {
   margin: 0 0 16px;
 }
+.pending-area-scans {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  border: 1px solid #d7e4de;
+  border-radius: 13px;
+  background: #f5faf7;
+}
+.pending-area-scans .orders-section-heading {
+  margin: 0;
+}
+.pending-area-scans .orders-section-heading h2 {
+  margin: 0 0 3px;
+  color: #29463b;
+  font-size: 15px;
+}
+.pending-area-scans .orders-section-heading p:last-child {
+  margin: 0;
+  color: #7c8982;
+  font-size: 8px;
+}
+.pending-area-scan-list {
+  display: grid;
+  gap: 8px;
+}
+.pending-area-scan {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 12px;
+  border: 1px solid #e0e9e3;
+  border-radius: 9px;
+  background: #fff;
+}
+.pending-area-scan > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+.pending-area-scan strong {
+  color: #314b40;
+  font-size: 9px;
+}
+.pending-area-scan span,
+.pending-area-scan small {
+  color: #7d8983;
+  font-size: 7px;
+  line-height: 1.4;
+}
+.pending-area-scan small {
+  color: #9a6c39;
+}
 .inventory-summary {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -3581,6 +3635,11 @@ footer a {
   border-radius: 8px;
   color: #a24f42;
   background: #fdf1ee;
+  font-size: 8px;
+  line-height: 1.45;
+}
+.photo-count-manager-note {
+  color: #7d6b4c;
   font-size: 8px;
   line-height: 1.45;
 }

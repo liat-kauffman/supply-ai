@@ -26,15 +26,18 @@ type Observation = {
 };
 
 export function AreaPhotoScanner({
+  canApprove,
   onApplied,
   onClose,
   storageAreas,
 }: {
+  canApprove: boolean;
   onApplied: (items: InventoryItem[]) => void;
   onClose: () => void;
   storageAreas: Array<{ id: string; name: string; location: { name: string } }>;
 }) {
   const [storageAreaId, setStorageAreaId] = useState("");
+  const [scanId, setScanId] = useState<string | null>(null);
   const [photo, setPhoto] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [observations, setObservations] = useState<Observation[]>([]);
@@ -76,6 +79,7 @@ export function AreaPhotoScanner({
       });
       const payload = (await response.json().catch(() => null)) as {
         error?: string;
+        scanId?: string;
         observations?: Observation[];
         unrecognizedItems?: string[];
         globalWarnings?: string[];
@@ -84,6 +88,7 @@ export function AreaPhotoScanner({
         throw new Error(payload?.error ?? "Unable to analyze this area photo");
       const nextObservations = payload?.observations ?? [];
       setObservations(nextObservations);
+      setScanId(payload?.scanId ?? null);
       setSelected(
         Object.fromEntries(
           nextObservations.map((observation) => [observation.productId, true]),
@@ -132,7 +137,7 @@ export function AreaPhotoScanner({
       const response = await fetch("/api/inventory/area-photo/approve", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ counts }),
+        body: JSON.stringify({ counts, scanId }),
       });
       const payload = (await response.json().catch(() => null)) as {
         items?: InventoryItem[];
@@ -308,15 +313,22 @@ export function AreaPhotoScanner({
                   {Object.values(selected).filter(Boolean).length} product
                   counts selected
                 </span>
-                <Button
-                  disabled={
-                    isApproving || !Object.values(selected).some(Boolean)
-                  }
-                  onClick={approve}
-                  type="button"
-                >
-                  {isApproving ? "Saving…" : `Approve selected counts`}
-                </Button>
+                {canApprove ? (
+                  <Button
+                    disabled={
+                      isApproving || !Object.values(selected).some(Boolean)
+                    }
+                    onClick={approve}
+                    type="button"
+                  >
+                    {isApproving ? "Saving…" : `Approve selected counts`}
+                  </Button>
+                ) : (
+                  <small className="photo-count-manager-note">
+                    A manager must approve these counts before inventory is
+                    updated.
+                  </small>
+                )}
               </div>
             </div>
           ) : null}

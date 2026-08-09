@@ -18,6 +18,16 @@ the images, Secrets Manager stores production credentials, Resend sends
 authentication email, and Gemini powers receipt/photo proposals. The frontend
 is not currently deployed to Vercel.
 
+The current application also includes an AI area-photo inventory workflow. It
+identifies visible products from the selected storage area, shows editable
+proposals, and only updates inventory after a manager approves the results.
+
+The current deployment has been completed manually and through GitHub Actions.
+The GitHub workflow currently builds Linux/AMD64 images, pushes them to ECR,
+registers ECS task definitions, updates the ECS services, and waits for the
+services to become stable. It currently uses protected AWS credentials in
+GitHub Actions; migrating that workflow to GitHub OIDC is still recommended.
+
 The historical Vercel/EKS options below are retained as future alternatives.
 For current operations, follow the focused [frontend ECS guide](frontend/DEPLOYMENT.md)
 and [backend ECS guide](backend/DEPLOYMENT.md) first.
@@ -30,12 +40,12 @@ It is based on the files currently in this repository:
 - `packages/domain/` contains shared validation and domain rules.
 - `backend/aws/rds-postgres.yaml` provisions the production RDS database.
 - `backend/aws/ecs-task-definition.json` and the Dockerfiles support AWS ECS today.
-- `.github/workflows/ci.yml` runs validation only. There is currently no CD pipeline.
-- There are currently no Kubernetes manifests or Helm charts.
+- `.github/workflows/ci.yml` runs validation and deploys changed services to ECS on pushes to `main`.
+- `infra/kubernetes/local/` contains local Kubernetes manifests for learning and testing. There is no production EKS deployment.
 
 ## Target architecture
 
-Use this architecture as the end state:
+Use this architecture as the current production architecture:
 
 ```text
 Users
@@ -49,30 +59,28 @@ AWS: private RDS PostgreSQL ---- AWS Secrets Manager
 
 AWS ECS: backend worker deployment
   |
-  +-- CloudWatch logs
-  +-- Kubernetes readiness/liveness probes
+  +-- CloudWatch logs and ECS health checks
 ```
 
-The shortest safe path is staged:
+The current path is staged as follows:
 
-1. Provision AWS RDS and the required AWS foundations.
-2. Deploy the frontend to ECS behind an HTTPS Application Load Balancer.
-3. Run the worker on ECS; move it to EKS only if Kubernetes is later required.
-4. Add CD only after CI is green and a manual deployment works.
-5. Use EKS for the worker; do not run the same production worker in both ECS and EKS unless you deliberately need two copies and have checked duplicate-job behaviour.
+1. AWS networking, RDS, Secrets Manager, ECR, ALB, HTTPS, and ECS are in place.
+2. The frontend and worker run on ECS Fargate.
+3. GitHub Actions validates, builds, publishes, and deploys changed services.
+4. Production hardening remains: OIDC, staging, backups/restore drills, monitoring, and rollback testing.
+5. Use EKS only if future scale or operational requirements justify its additional complexity.
 
 ## Current gaps to close
 
-- Create an AWS VPC with private subnets in at least two Availability Zones.
-- Create controlled security groups for RDS and the worker runtime.
-- Create an ECR repository for the backend and migration images.
-- Create IAM roles with least privilege. Do not use long-lived AWS keys in the application.
-- Decide how Vercel reaches RDS. Prefer a managed/private connectivity option. If direct public access is unavoidable, restrict port `5432` to the provider's stable egress CIDR and require TLS.
-- Create production secrets in Vercel and AWS Secrets Manager.
-- Run the first production migration using `prisma migrate deploy`.
-- Create an EKS cluster, node capacity, namespace, service account, deployment, and probes if Kubernetes is the chosen worker runtime.
-- Add CD workflows for Vercel, container publishing, migrations, and EKS deployment.
-- Add backups, alerting, a rollback procedure, and a staging environment before inviting real customers.
+- Migrate GitHub Actions from stored AWS access keys to GitHub OIDC.
+- Add a staging AWS environment and separate staging secrets/database.
+- Automate production Prisma migrations as an approval-gated ECS task.
+- Add RDS backup verification and a tested restore procedure.
+- Add CloudWatch alarms, application error tracking, and deployment notifications.
+- Add ECS deployment rollback and smoke tests after deployment.
+- Add tenant-isolation, permissions, inventory, receipt, order, and AI approval tests.
+- Document the incident response and recovery procedures.
+- Keep Vercel and EKS as optional future alternatives; do not operate duplicate production runtimes without a deliberate migration plan.
 
 ## Phase 0 — prepare locally
 
@@ -327,14 +335,14 @@ Rollback procedure:
 
 Maintain this inventory outside the repository, in the team's password/secrets manager:
 
-| Secret/value                   | Where used                    | Owner             |
-| ------------------------------ | ----------------------------- | ----------------- |
-| RDS application `DATABASE_URL` | Vercel, migration job, worker | Platform owner    |
-| `BETTER_AUTH_SECRET`           | Vercel                        | Application owner |
-| Resend API key and sender      | Vercel                        | Application owner |
-| Gemini API key/model settings  | Vercel                        | Application owner |
-| ECR/EKS deployment role        | GitHub OIDC                   | Platform owner    |
-| RDS master secret              | AWS Secrets Manager only      | Platform owner    |
+| Secret/value                   | Where used                              | Owner             |
+| ------------------------------ | --------------------------------------- | ----------------- |
+| RDS application `DATABASE_URL` | ECS task definitions and migration task | Platform owner    |
+| `BETTER_AUTH_SECRET`           | ECS frontend task                       | Application owner |
+| Resend API key and sender      | ECS frontend task                       | Application owner |
+| Gemini API key/model settings  | ECS frontend task                       | Application owner |
+| ECR/ECS deployment role        | GitHub Actions                          | Platform owner    |
+| RDS master secret              | AWS Secrets Manager only                | Platform owner    |
 
 Rotate secrets on a schedule and immediately after accidental exposure. Keep `.env.example` non-sensitive and updated whenever a variable is added.
 
@@ -343,12 +351,12 @@ Rotate secrets on a schedule and immediately after accidental exposure. Keep `.e
 - [ ] AWS account MFA, billing alerts, CloudTrail, and least-privilege access are configured.
 - [ ] RDS is encrypted, Multi-AZ, backed up for 14 days, deletion-protected, and not open to the internet.
 - [ ] A dedicated application database role is used instead of the RDS master user.
-- [ ] ECS production task secrets and environment variables are set; Vercel is not required for the current deployment.
+- [x] ECS production task secrets and environment variables are set; Vercel is not required for the current deployment.
 - [ ] Authentication email delivery and the verified sender work.
 - [ ] Prisma migrations have been applied with `migrate deploy`.
-- [ ] CI is required on pull requests.
-- [ ] CD uses OIDC, immutable image tags, protected production approval, and smoke tests.
-- [ ] The worker is running in exactly one intended runtime: ECS or EKS.
+- [x] CI runs on pull requests and pushes to `main`.
+- [ ] CD uses OIDC, protected production approval, and smoke tests. Current CD uses protected AWS access-key secrets and should be migrated to OIDC.
+- [x] The worker is running in exactly one intended production runtime: ECS.
 - [ ] Worker readiness/liveness checks and logs are visible.
 - [ ] RDS restore and application rollback have been tested.
 - [ ] A staging environment exists before production data is used.
@@ -356,13 +364,12 @@ Rotate secrets on a schedule and immediately after accidental exposure. Keep `.e
 
 ## Recommended implementation order
 
-1. Finish AWS networking and provision RDS.
-2. Deploy ECS manually and validate the complete user flow.
-3. Push and run the worker on ECS using the existing deployment files, if EKS will take time.
-4. Create EKS and move the worker there with a minimal Deployment and external secrets.
-5. Add GitHub OIDC, ECR publishing, migration approval, and EKS rollout automation.
-6. Add staging, monitoring, backups/restore drills, and documented incident response.
-7. Only then scale worker replicas or introduce additional Kubernetes services.
+1. Migrate the existing ECS GitHub Actions deployment to OIDC.
+2. Add staging and protected production environments.
+3. Add approval-gated migrations, smoke tests, and ECS rollback.
+4. Add monitoring, backups/restore drills, and documented incident response.
+5. Add tenant-isolation and end-to-end workflow tests.
+6. Consider EKS only if ECS no longer meets the operational requirements.
 
 This sequencing matches the repository's current modular-monolith design and preserves the approval, tenancy, audit, and migration safety rules already established in the ADRs.
 
@@ -813,23 +820,33 @@ Create these GitHub Environments:
 
 First automate image publishing only. The workflow should check out the commit, log into AWS through OIDC, build both Docker images, tag them with the commit SHA, and push them to ECR. Confirm the images appear in ECR.
 
-Next automate the migration as a separate job. Add an explicit dependency so the deployment job cannot start if migration fails. Protect this job with the production environment approval.
+Next automate the migration as a separate ECS task. Add an explicit dependency so
+the deployment job cannot start if migration fails. Protect this job with the
+production environment approval.
 
-Then automate the EKS rollout. The deployment job should:
+The current production rollout is ECS-based. The deployment job should:
 
 1. Configure AWS credentials through OIDC.
-2. Load the EKS kubeconfig.
-3. Substitute the exact commit image tag.
-4. Apply the migration Job.
-5. Wait for the Job to complete.
-6. Apply the worker Deployment.
-7. Wait for `kubectl rollout status`.
-8. Fail on timeout.
+2. Build and push Linux/AMD64 images to ECR.
+3. Substitute the exact commit image tag in ECS task definitions.
+4. Run the migration task and wait for it to complete.
+5. Register the frontend and backend ECS task definitions.
+6. Update only the services affected by the commit.
+7. Wait for ECS services to become stable.
+8. Fail on timeout and preserve the previous task definition for rollback.
 9. Run health and smoke tests.
+
+If EKS is adopted later, replace the ECS rollout steps with the EKS Job and
+Deployment steps described in the Kubernetes section. Do not deploy the same
+worker to ECS and EKS at the same time unless duplicate processing has been
+designed and tested.
 
 Use an OIDC trust policy that permits only your GitHub repository and intended branch/environment. The workflow should not contain long-lived AWS access keys.
 
-For Vercel, the simplest reliable setup is to connect the repository in Vercel and let a successful push to `main` create the production deployment. If you later use the Vercel CLI, store only the Vercel token in a protected GitHub Environment and never print it in logs.
+Vercel is not part of the current production path. If the frontend is moved to
+Vercel later, connect the repository in Vercel and use Preview and Production
+environments with separate databases and secrets. Do not run the same frontend
+in ECS and Vercel without deciding which URL and deployment is authoritative.
 
 ### Step 13 — perform a release safely
 
@@ -847,7 +864,7 @@ For each release, use this checklist:
 10. Take or verify the RDS backup.
 11. Approve the production migration.
 12. Approve the production deployment.
-13. Watch Vercel logs, EKS pods, worker logs, and RDS metrics.
+13. Watch ALB responses, ECS events/logs, worker logs, and RDS metrics.
 14. Run the smoke-test checklist.
 15. Record the release SHA and result.
 

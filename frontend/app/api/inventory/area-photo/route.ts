@@ -32,7 +32,7 @@ function parseJson(text: string) {
 
 export async function POST(request: Request) {
   try {
-    const company = await requireApiCompany(["owner", "manager"]);
+    const company = await requireApiCompany(["owner", "manager", "employee"]);
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey)
       return NextResponse.json(
@@ -209,7 +209,20 @@ Return JSON with observations, unrecognizedItems, and globalWarnings. Each obser
         } => Boolean(observation.productId),
       );
 
+    const scan = await prisma.inventoryScan.create({
+      data: {
+        businessId: company.organizationId,
+        storageAreaId: storageAreaId || null,
+        createdById: company.userId,
+        observations,
+        globalWarnings: parsed.globalWarnings,
+        unrecognizedItems: parsed.unrecognizedItems,
+      },
+      select: { id: true },
+    });
+
     return NextResponse.json({
+      scanId: scan.id,
       observations,
       unrecognizedItems: parsed.unrecognizedItems,
       globalWarnings: [

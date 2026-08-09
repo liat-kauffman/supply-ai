@@ -5,21 +5,23 @@ import { z } from "zod";
 import { apiErrorResponse, requireApiCompany } from "@/lib/auth/api";
 import { getInventoryItem } from "@/lib/inventory";
 
+const countsSchema = z
+  .array(
+    z.object({
+      productId: z.string().min(1),
+      quantity: z.number().nonnegative().multipleOf(0.5),
+    }),
+  )
+  .max(80)
+  .refine(
+    (counts) =>
+      new Set(counts.map((count) => count.productId)).size === counts.length,
+    "Each product can only be approved once",
+  );
+
 const approveSchema = z.object({
-  counts: z
-    .array(
-      z.object({
-        productId: z.string().min(1),
-        quantity: z.number().nonnegative().multipleOf(0.5),
-      }),
-    )
-    .min(1)
-    .max(80)
-    .refine(
-      (counts) =>
-        new Set(counts.map((count) => count.productId)).size === counts.length,
-      "Each product can only be approved once",
-    ),
+  scanId: z.string().min(1).optional(),
+  counts: countsSchema.optional().default([]),
 });
 
 export async function POST(request: Request) {
@@ -37,7 +39,44 @@ export async function POST(request: Request) {
         { status: 400 },
       );
 
-    const productIds = parsed.data.counts.map((count) => count.productId);
+    let counts = parsed.data.counts;
+    const requestScanId = parsed.data.scanId;
+    if (requestScanId && !counts.length) {
+      const scan = await prisma.inventoryScan.findFirst({
+        where: {
+          id: requestScanId,
+          businessId: company.organizationId,
+          status: "PENDING",
+        },
+        select: { observations: true },
+      });
+      if (!scan)
+        return NextResponse.json(
+          { error: "This area scan is no longer awaiting approval." },
+          { status: 409 },
+        );
+      const storedCounts = z
+        .array(
+          z.object({
+            productId: z.string().min(1),
+            count: z.number().nonnegative(),
+            confidence: z.number().min(0).max(1),
+          }),
+        )
+        .parse(scan.observations)
+        .filter((observation) => observation.confidence >= 0.85);
+      counts = storedCounts.map((observation) => ({
+        productId: observation.productId,
+        quantity: observation.count,
+      }));
+    }
+    if (!counts.length)
+      return NextResponse.json(
+        { error: "Select at least one count to approve." },
+        { status: 400 },
+      );
+
+    const productIds = counts.map((count) => count.productId);
     const products = await prisma.product.findMany({
       where: {
         id: { in: productIds },
@@ -70,9 +109,9 @@ export async function POST(request: Request) {
     const productById = new Map(
       products.map((product) => [product.id, product]),
     );
-    const scanId = crypto.randomUUID();
+    const movementScanId = requestScanId ?? crypto.randomUUID();
     await prisma.$transaction(
-      parsed.data.counts.flatMap((count) => {
+      counts.flatMap((count) => {
         const product = productById.get(count.productId);
         if (!product) return [];
         const currentQuantity = product.movements.reduce(
@@ -92,10 +131,10 @@ export async function POST(request: Request) {
               quantityDelta: delta,
               unit: product.baseUnit,
               sourceType: "area-photo",
-              sourceId: scanId,
+              sourceId: movementScanId,
               reason: "Approved area photo count",
               createdById: company.userId,
-              idempotencyKey: `area-photo:${scanId}:${product.id}`,
+              idempotencyKey: `area-photo:${movementScanId}:${product.id}`,
             },
           }),
           prisma.auditEvent.create({
@@ -107,7 +146,7 @@ export async function POST(request: Request) {
               entityId: product.id,
               metadata: {
                 source: "area-photo",
-                scanId,
+                scanId: movementScanId,
                 previousQuantity: currentQuantity,
                 quantity: count.quantity,
                 delta,
@@ -117,6 +156,17 @@ export async function POST(request: Request) {
         ];
       }),
     );
+
+    if (requestScanId) {
+      await prisma.inventoryScan.update({
+        where: { id: requestScanId },
+        data: {
+          status: "APPROVED",
+          reviewedById: company.userId,
+          reviewedAt: new Date(),
+        },
+      });
+    }
 
     const items = await Promise.all(
       productIds.map((productId) =>

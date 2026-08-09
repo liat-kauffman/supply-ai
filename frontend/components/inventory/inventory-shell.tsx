@@ -59,18 +59,37 @@ const statusLabels: Record<InventoryStatus, string> = {
 
 const ITEMS_PER_PAGE = 10;
 
+type PendingAreaScan = {
+  id: string;
+  createdAt: string;
+  createdByName: string;
+  storageAreaName: string | null;
+  observations: Array<{
+    productId: string;
+    name: string;
+    count: number;
+    confidence: number;
+  }>;
+  globalWarnings: string[];
+};
+
 export function InventoryShell({
   companyName,
+  currentRole,
   initialItems,
+  pendingScans,
   storageAreas,
   userName,
 }: {
   companyName: string;
+  currentRole: string;
   initialItems: InventoryItem[];
+  pendingScans: PendingAreaScan[];
   storageAreas: Array<{ id: string; name: string; location: { name: string } }>;
   userName: string;
 }) {
   const [items, setItems] = useState(initialItems);
+  const [openScans, setOpenScans] = useState(pendingScans);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | InventoryStatus>(
     "all",
@@ -99,6 +118,37 @@ export function InventoryShell({
     explanation: string;
     warnings: string[];
   } | null>(null);
+  const canApproveCounts = currentRole === "owner" || currentRole === "manager";
+
+  async function approveHighConfidenceScan(scanId: string) {
+    setIsCountSaving(true);
+    try {
+      const response = await fetch("/api/inventory/area-photo/approve", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ scanId }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        items?: InventoryItem[];
+        error?: string;
+      } | null;
+      if (!response.ok || !payload?.items)
+        throw new Error(payload?.error ?? "Unable to approve this scan");
+      setItems((current) =>
+        current.map(
+          (item) => payload.items?.find((next) => next.id === item.id) ?? item,
+        ),
+      );
+      setOpenScans((current) => current.filter((scan) => scan.id !== scanId));
+      setMessage("High-confidence counts were approved.");
+    } catch (error) {
+      setMessage(
+        error instanceof Error ? error.message : "Unable to approve this scan",
+      );
+    } finally {
+      setIsCountSaving(false);
+    }
+  }
 
   const selectedItem = items.find((item) => item.id === selectedItemId) ?? null;
   const userInitials = userName
@@ -444,6 +494,58 @@ export function InventoryShell({
           </div>
         ) : null}
 
+        {canApproveCounts && openScans.length ? (
+          <section
+            className="pending-area-scans"
+            aria-labelledby="pending-area-scans-title"
+          >
+            <div className="orders-section-heading">
+              <div>
+                <p className="eyebrow">MANAGER REVIEW</p>
+                <h2 id="pending-area-scans-title">
+                  Counts waiting for approval
+                </h2>
+                <p>
+                  Approve high-confidence counts together. Review warnings
+                  separately.
+                </p>
+              </div>
+            </div>
+            <div className="pending-area-scan-list">
+              {openScans.map((scan) => {
+                const highConfidence = scan.observations.filter(
+                  (observation) => observation.confidence >= 0.85,
+                );
+                return (
+                  <article className="pending-area-scan" key={scan.id}>
+                    <div>
+                      <strong>
+                        {scan.storageAreaName ?? "All inventory areas"}
+                      </strong>
+                      <span>
+                        Submitted by {scan.createdByName} ·{" "}
+                        {highConfidence.length} high-confidence count
+                        {highConfidence.length === 1 ? "" : "s"}
+                      </span>
+                      {scan.globalWarnings.length ? (
+                        <small>{scan.globalWarnings.join(" · ")}</small>
+                      ) : null}
+                    </div>
+                    <Button
+                      disabled={isCountSaving || !highConfidence.length}
+                      onClick={() => approveHighConfidenceScan(scan.id)}
+                      size="sm"
+                      type="button"
+                    >
+                      Approve high-confidence
+                    </Button>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        ) : null}
+
         <section className="inventory-summary" aria-label="Inventory summary">
           <article>
             <span className="summary-icon neutral">
@@ -710,6 +812,7 @@ export function InventoryShell({
 
       {isScanningArea ? (
         <AreaPhotoScanner
+          canApprove={canApproveCounts}
           storageAreas={storageAreas}
           onApplied={(nextItems) => {
             setItems((current) =>
@@ -962,17 +1065,24 @@ export function InventoryShell({
                     {countProposal.warnings.length ? (
                       <small>{countProposal.warnings.join(" · ")}</small>
                     ) : null}
-                    <Button
-                      disabled={isCountSaving || !selectedItem.active}
-                      onClick={() =>
-                        updateQuantity(countProposal.count, "photo")
-                      }
-                      type="button"
-                    >
-                      {isCountSaving
-                        ? "Saving…"
-                        : "Approve and update inventory"}
-                    </Button>
+                    {canApproveCounts ? (
+                      <Button
+                        disabled={isCountSaving || !selectedItem.active}
+                        onClick={() =>
+                          updateQuantity(countProposal.count, "photo")
+                        }
+                        type="button"
+                      >
+                        {isCountSaving
+                          ? "Saving…"
+                          : "Approve and update inventory"}
+                      </Button>
+                    ) : (
+                      <small className="photo-count-manager-note">
+                        A manager must approve this count before inventory is
+                        updated.
+                      </small>
+                    )}
                   </div>
                 ) : null}
               </section>

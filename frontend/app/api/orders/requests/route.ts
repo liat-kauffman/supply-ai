@@ -149,8 +149,7 @@ export async function POST(request: Request) {
                 productName: displayText(link.product.name, "Item"),
                 supplierSku: displayText(link.supplierSku, "") || null,
                 unit: displayText(link.product.baseUnit, "units"),
-                requestedQuantity:
-                  item.requestedQuantity ?? item.packageCount * unitsPerPackage,
+                requestedQuantity: item.packageCount * unitsPerPackage,
                 unitsPerPackage,
                 packageCount: item.packageCount,
                 latestPackagePrice,
