@@ -2893,6 +2893,12 @@ footer a {
   border-color: #cfded5;
   background: #f7faf8;
 }
+.orders-form-help {
+  margin: 5px 0 0;
+  color: #7f8984;
+  font-size: 8px;
+  line-height: 1.45;
+}
 .create-order-supplier {
   display: grid;
   grid-template-columns: minmax(150px, 0.75fr) minmax(190px, 1.25fr) auto;

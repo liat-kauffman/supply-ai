@@ -345,11 +345,6 @@ export function ReceiptsShell({
                                         <strong>
                                           {displayText(line.name, "Item")}
                                         </strong>
-                                        {displayText(line.description, "") ? (
-                                          <small className="receipt-line-description">
-                                            {displayText(line.description)}
-                                          </small>
-                                        ) : null}
                                       </td>
                                       <td>{displayText(line.category)}</td>
                                       <td>{displayText(line.supplierSku)}</td>
