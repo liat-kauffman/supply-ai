@@ -21,10 +21,12 @@ export async function generateGeminiContent({
   apiKey,
   body,
   timeoutMs = 35_000,
+  maxAttempts = 2,
 }: {
   apiKey: string;
   body: unknown;
   timeoutMs?: number;
+  maxAttempts?: number;
 }): Promise<GeminiResult> {
   const models = [
     ...new Set([
@@ -41,7 +43,7 @@ export async function generateGeminiContent({
   };
 
   for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       if (attempt > 0) await wait(1_000 * 2 ** (attempt - 1));
       try {
         const response = await fetch(

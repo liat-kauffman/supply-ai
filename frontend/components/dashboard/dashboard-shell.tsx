@@ -125,6 +125,7 @@ export function DashboardShell({
             description={dashboard.insight.description}
             confidence={dashboard.insight.confidence}
             dataDays={dashboard.insight.dataDays}
+            source={dashboard.insight.source}
           />
         </div>
         <footer>Inventory changes are never made without your approval.</footer>
