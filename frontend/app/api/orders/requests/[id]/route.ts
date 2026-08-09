@@ -2,7 +2,7 @@ import { prisma } from "@supply/database";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { ApiAccessError, requireApiCompany } from "@/lib/auth/api";
+import { apiErrorResponse, requireApiCompany } from "@/lib/auth/api";
 import { displayText, finiteNumber, finiteNumberOrNull } from "@/lib/display";
 
 const mutationSchema = z.object({
@@ -181,16 +181,7 @@ export async function PATCH(
 
     return NextResponse.json({ ok: true, reviewedAt });
   } catch (error) {
-    if (error instanceof ApiAccessError)
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
-    console.error(error);
-    return NextResponse.json(
-      { error: "Unable to update the supplier order" },
-      { status: 500 },
-    );
+    return apiErrorResponse(error, "Unable to update the supplier order");
   }
 }
 
@@ -246,15 +237,6 @@ export async function DELETE(
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    if (error instanceof ApiAccessError)
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
-    console.error(error);
-    return NextResponse.json(
-      { error: "Unable to delete the supplier order" },
-      { status: 500 },
-    );
+    return apiErrorResponse(error, "Unable to delete the supplier order");
   }
 }

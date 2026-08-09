@@ -1,7 +1,6 @@
 import { prisma } from "@supply/database";
-import { NextResponse } from "next/server";
 
-import { ApiAccessError, requireApiCompany } from "@/lib/auth/api";
+import { apiErrorResponse, requireApiCompany } from "@/lib/auth/api";
 import {
   createReceiptWorkbook,
   excelResponse,
@@ -47,15 +46,6 @@ export async function GET() {
       `supplai-receipts-${new Date().toISOString().slice(0, 10)}.xls`,
     );
   } catch (error) {
-    if (error instanceof ApiAccessError)
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
-    console.error(error);
-    return NextResponse.json(
-      { error: "Unable to export receipts" },
-      { status: 500 },
-    );
+    return apiErrorResponse(error, "Unable to export receipts");
   }
 }

@@ -524,8 +524,6 @@ export function OrdersShell({
     <div className="app-shell orders-shell">
       <Sidebar
         items={navigation}
-        activeHref="/orders"
-        onNavigate={() => undefined}
         user={{ initials, name: userName, subtitle: companyName }}
       />
       <main className="orders-main">
@@ -533,10 +531,6 @@ export function OrdersShell({
           <div>
             <p className="eyebrow">SUPPLIER BASKETS</p>
             <h1>Orders</h1>
-            <p className="subtitle">
-              Adjust package quantities, request approval, and turn approved
-              baskets into supplier-ready lists.
-            </p>
           </div>
           <div className="orders-header-actions">
             <Button
@@ -571,6 +565,10 @@ export function OrdersShell({
               <div>
                 <p className="eyebrow">CREATE</p>
                 <h2>New supplier order</h2>
+                <p className="orders-form-help">
+                  Choose a supplier, add products, then set the number of
+                  packages.
+                </p>
               </div>
               <Button
                 onClick={() => setIsCreatingOrder(false)}
@@ -584,7 +582,7 @@ export function OrdersShell({
             <div className="approval-card">
               <div className="approval-add-item create-order-supplier">
                 <label>
-                  <span>Supplier</span>
+                  <span>1. Choose supplier</span>
                   <select
                     onChange={(event) => chooseNewSupplier(event.target.value)}
                     value={newSupplierId}
@@ -600,7 +598,7 @@ export function OrdersShell({
                   </select>
                 </label>
                 <label>
-                  <span>Add supplier item</span>
+                  <span>2. Add a product</span>
                   <select
                     onChange={(event) =>
                       setNewItemSelection(event.target.value)
@@ -646,7 +644,7 @@ export function OrdersShell({
                         </small>
                       </div>
                       <label>
-                        <span>Packages</span>
+                        <span>Packages to order</span>
                         <input
                           min="1"
                           onChange={(event) => {
@@ -665,28 +663,11 @@ export function OrdersShell({
                           value={item.packageCount}
                         />
                       </label>
-                      <label>
-                        <span>Total quantity ({unitLabel(item.unit)})</span>
-                        <input
-                          min="0.001"
-                          onChange={(event) =>
-                            updateNewOrderItem(item.productId, {
-                              requestedQuantity: Math.max(
-                                0.001,
-                                Number(event.target.value) || 0.001,
-                              ),
-                            })
-                          }
-                          step="0.001"
-                          type="number"
-                          value={item.requestedQuantity}
-                        />
-                      </label>
                       <div className="approval-line-total">
                         <strong>{item.packageCount} packages</strong>
                         <small>
-                          {quantity(item.requestedQuantity)}{" "}
-                          {unitLabel(item.unit)} ·{" "}
+                          {quantity(item.packageCount * item.unitsPerPackage)}{" "}
+                          {unitLabel(item.unit)} total ·{" "}
                           {item.latestPackagePrice === null
                             ? "price unavailable"
                             : displayMoney(
@@ -1327,9 +1308,9 @@ export function OrdersShell({
                           <th>Item</th>
                           <th>On hand</th>
                           <th>Minimum</th>
-                          <th>Suggested quantity</th>
-                          <th>Packages</th>
-                          <th>Basket</th>
+                          <th>Recommended</th>
+                          <th>Order packages</th>
+                          <th>Order</th>
                           <th>Estimated cost</th>
                         </tr>
                       </thead>
@@ -1356,7 +1337,7 @@ export function OrdersShell({
                                 {quantity(item.minimumQuantity)}{" "}
                                 {unitLabel(item.unit)}
                               </td>
-                              <td data-label="Suggested quantity">
+                              <td data-label="Recommended">
                                 {quantity(packages * item.unitsPerPackage)}{" "}
                                 {unitLabel(item.unit)}
                                 <small>
@@ -1364,7 +1345,7 @@ export function OrdersShell({
                                   {unitLabel(item.unit)}
                                 </small>
                               </td>
-                              <td data-label="Packages">
+                              <td data-label="Order packages">
                                 <label className="package-count-input">
                                   <span className="sr-only">
                                     Packages for {item.productName}
@@ -1391,7 +1372,7 @@ export function OrdersShell({
                                   </small>
                                 </label>
                               </td>
-                              <td data-label="Basket">
+                              <td data-label="Order">
                                 <Button
                                   onClick={() =>
                                     addSuggestionToBasket(basket, item)
@@ -1400,7 +1381,7 @@ export function OrdersShell({
                                   type="button"
                                   variant="outline"
                                 >
-                                  <ShoppingCart /> Add to basket
+                                  <ShoppingCart /> Add to order
                                 </Button>
                               </td>
                               <td data-label="Estimated cost">
@@ -1472,13 +1453,11 @@ export function OrdersShell({
         )}
       </main>
       <MobileNavigation
-        activeHref="/orders"
         items={navigation.map(({ label, href, icon }) => ({
           label,
           href,
           icon,
         }))}
-        onNavigate={() => undefined}
       />
     </div>
   );

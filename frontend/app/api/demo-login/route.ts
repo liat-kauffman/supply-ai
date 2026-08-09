@@ -17,18 +17,36 @@ async function seedWorkspace(userId: string, suffix: string) {
         slug: `harbor-coffee-demo-${suffix}`,
         createdAt: now,
         businessProfile: {
-          create: { timezone: "Asia/Jerusalem", currency: "ILS", onboardingCompletedAt: now },
+          create: {
+            timezone: "Asia/Jerusalem",
+            currency: "ILS",
+            onboardingCompletedAt: now,
+          },
         },
       },
     });
     await tx.member.create({
-      data: { id: `demo-member-${suffix}`, organizationId: organization.id, userId, role: "owner", createdAt: now },
+      data: {
+        id: `demo-member-${suffix}`,
+        organizationId: organization.id,
+        userId,
+        role: "owner",
+        createdAt: now,
+      },
     });
     const location = await tx.location.create({
-      data: { businessId: organization.id, name: "Main Café", address: "12 Seaside Avenue" },
+      data: {
+        businessId: organization.id,
+        name: "Main Café",
+        address: "12 Seaside Avenue",
+      },
     });
     const storage = await tx.storageArea.create({
-      data: { locationId: location.id, name: "Main Store", description: "Dry store and service counter" },
+      data: {
+        locationId: location.id,
+        name: "Main Store",
+        description: "Dry store and service counter",
+      },
     });
     const supplier = await tx.supplier.create({
       data: {
@@ -172,7 +190,10 @@ async function seedWorkspace(userId: string, suffix: string) {
 
 export async function POST() {
   if (process.env.ENABLE_DEMO_MODE !== "true")
-    return NextResponse.json({ error: "Demo mode is not enabled." }, { status: 404 });
+    return NextResponse.json(
+      { error: "Demo mode is not enabled." },
+      { status: 404 },
+    );
   try {
     const suffix = randomUUID().replaceAll("-", "").slice(0, 16);
     const email = `visitor-${suffix}@${demoDomain}`;
@@ -183,18 +204,28 @@ export async function POST() {
     });
     const userId = signup.user?.id;
     if (!userId) throw new Error("Demo signup did not return a user");
-    await prisma.user.update({ where: { id: userId }, data: { emailVerified: true } });
+    await prisma.user.update({
+      where: { id: userId },
+      data: { emailVerified: true },
+    });
     await seedWorkspace(userId, suffix);
     const response = await auth.api.signInEmail({
       body: { email, password },
       headers: await headers(),
       asResponse: true,
     });
-    const result = NextResponse.json({ ok: response.ok }, { status: response.status });
-    for (const cookie of response.headers.getSetCookie()) result.headers.append("set-cookie", cookie);
+    const result = NextResponse.json(
+      { ok: response.ok },
+      { status: response.status },
+    );
+    for (const cookie of response.headers.getSetCookie())
+      result.headers.append("set-cookie", cookie);
     return result;
   } catch (error) {
     console.error("Demo session creation failed", error);
-    return NextResponse.json({ error: "The demo could not be started. Please try again." }, { status: 503 });
+    return NextResponse.json(
+      { error: "The demo could not be started. Please try again." },
+      { status: 503 },
+    );
   }
 }

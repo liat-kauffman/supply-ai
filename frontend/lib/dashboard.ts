@@ -1,5 +1,6 @@
 import { prisma } from "@supply/database";
 
+import { generateGeminiContent } from "@/lib/gemini";
 import { displayText, finiteNumber } from "@/lib/display";
 
 export interface DashboardData {
@@ -48,7 +49,36 @@ export interface DashboardData {
     description: string;
     confidence: number;
     dataDays: number | null;
+    source: "ai" | "fallback";
   };
+}
+
+function parseInsightResponse(value: string | undefined) {
+  if (!value) return null;
+  const cleaned = value
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+  try {
+    const parsed = JSON.parse(cleaned) as {
+      title?: unknown;
+      description?: unknown;
+      confidence?: unknown;
+    };
+    const title = displayText(parsed.title, "");
+    const description = displayText(parsed.description, "");
+    if (!title || !description) return null;
+    return {
+      title,
+      description,
+      confidence: Math.max(
+        0,
+        Math.min(100, finiteNumber(parsed.confidence, 70)),
+      ),
+    };
+  } catch {
+    return null;
+  }
 }
 
 function formatCurrency(value: number, currency: string) {
@@ -512,7 +542,7 @@ export async function getDashboardData(
       )
     : null;
 
-  const insight = insightTarget
+  const fallbackInsight = insightTarget
     ? {
         title:
           insightTarget.quantity < insightTarget.minimum
@@ -532,6 +562,72 @@ export async function getDashboardData(
         confidence: 100,
         dataDays: null,
       };
+
+  let insight: DashboardData["insight"] = {
+    ...fallbackInsight,
+    source: "fallback",
+  };
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (apiKey && (products.length || receipts.length)) {
+    const aiResult = await generateGeminiContent({
+      apiKey,
+      timeoutMs: 8_000,
+      maxAttempts: 1,
+      body: {
+        contents: [
+          {
+            role: "user",
+            parts: [
+              {
+                text: `You are Supplai's inventory operations analyst. Analyze the real workspace data below and produce one practical recommendation for the business owner. Prioritize an actionable stock risk, supplier/order decision, unusual spend pattern, or data-quality issue. Never invent facts, prices, dates, or trends. If data is incomplete, say so briefly. Return JSON only with exactly: {"title":"short headline, max 75 characters","description":"one or two concise sentences grounded in the provided data","confidence":number from 0 to 100}.\n\nWorkspace data:\n${JSON.stringify(
+                  {
+                    asOf: now.toISOString(),
+                    weeklySpend,
+                    inventory: stockItems.slice(0, 12).map((item) => ({
+                      name: item.name,
+                      quantity: item.quantity,
+                      minimum: item.minimum,
+                      unit: item.unit,
+                      supplier: item.supplierName,
+                    })),
+                    recentReceipts: receipts.slice(0, 12).map((receipt) => ({
+                      date: receipt.receiptDate.toISOString().slice(0, 10),
+                      supplier: receipt.supplier.name,
+                      total: receipt.lines.reduce(
+                        (sum, line) => sum + finiteNumber(line.lineTotal),
+                        0,
+                      ),
+                      currency: receipt.currency,
+                      status: receipt.status,
+                      lineCount: receipt.lines.length,
+                    })),
+                    suppliers: rankedSuppliers.slice(0, 6).map((supplier) => ({
+                      name: supplier.name,
+                      basketValue: supplier.basketValue,
+                      minimumValue: supplier.minimumValue,
+                      cutoffTime: supplier.cutoffTime,
+                      orderOffset: supplier.orderOffset,
+                    })),
+                  },
+                )}`,
+              },
+            ],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          responseMimeType: "application/json",
+        },
+      },
+    });
+    const aiText = aiResult.payload?.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text ?? "")
+      .join("");
+    const parsedInsight = parseInsightResponse(aiText);
+    if (aiResult.ok && parsedInsight) {
+      insight = { ...parsedInsight, dataDays, source: "ai" };
+    }
+  }
 
   return {
     headerEyebrow: headerEyebrow(now, timeZone),

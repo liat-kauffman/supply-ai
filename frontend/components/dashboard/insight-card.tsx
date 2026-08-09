@@ -9,6 +9,7 @@ interface InsightCardProps {
   description: string;
   confidence: number;
   dataDays: number | null;
+  source: "ai" | "fallback";
 }
 
 export function InsightCard({
@@ -16,6 +17,7 @@ export function InsightCard({
   description,
   confidence,
   dataDays,
+  source,
 }: InsightCardProps) {
   return (
     <Card className="panel insight">
@@ -24,12 +26,15 @@ export function InsightCard({
           <Sparkles />
         </div>
         <div>
-          <span className="ai-label">SUPPLAI INSIGHT</span>
+          <span className="ai-label">
+            {source === "ai" ? "SUPPLAI AI INSIGHT" : "SUPPLAI INSIGHT"}
+          </span>
           <h3>{displayText(title, "No insight available yet")}</h3>
           <p>{displayText(description, "More inventory data is needed.")}</p>
           <div className="evidence">
             <Badge variant="outline">
-              Confidence <strong>{displayPercent(confidence)}</strong>
+              {source === "ai" ? "AI confidence" : "Data confidence"}{" "}
+              <strong>{displayPercent(confidence)}</strong>
             </Badge>
             <Badge variant="outline">
               {finiteNumberOrNull(dataDays) === null ? (

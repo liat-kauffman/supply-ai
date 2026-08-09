@@ -103,23 +103,11 @@ export function ReceiptsShell({
   const primaryCurrency = receipts[0]?.currency ?? "ILS";
   const supplierCount = new Set(receipts.map((receipt) => receipt.supplier))
     .size;
-  const averageConfidence = receipts.length
-    ? Math.round(
-        (receipts.reduce(
-          (total, receipt) => total + finiteNumber(receipt.confidence, 1),
-          0,
-        ) /
-          receipts.length) *
-          100,
-      )
-    : 0;
 
   return (
     <div className="app-shell receipts-shell">
       <Sidebar
         items={navigation}
-        activeHref="/receipts"
-        onNavigate={() => undefined}
         user={{ initials, name: userName, subtitle: companyName }}
       />
       <main className="receipts-main">
@@ -127,10 +115,6 @@ export function ReceiptsShell({
           <div>
             <p className="eyebrow">PURCHASE MEMORY</p>
             <h1>Receipts</h1>
-            <p className="subtitle">
-              OCR imports are stored by date and connected to suppliers,
-              inventory, and price history.
-            </p>
           </div>
           <div className="receipts-actions">
             {receipts.length ? (
@@ -194,29 +178,6 @@ export function ReceiptsShell({
 
         {receipts.length ? (
           <section className="receipts-workspace">
-            <div className="receipts-overview-card">
-              <div>
-                <p className="eyebrow">LATEST IMPORTS</p>
-                <h2>Receipt history at a glance</h2>
-                <p>
-                  Every approved receipt keeps supplier, invoice, quantity, and
-                  price context together for later review and export.
-                </p>
-              </div>
-              <div className="receipts-overview-stats">
-                <article>
-                  <small>OCR confidence</small>
-                  <strong>{displayPercent(averageConfidence)}</strong>
-                  <span>Average across saved receipts</span>
-                </article>
-                <article>
-                  <small>Suppliers captured</small>
-                  <strong>{supplierCount}</strong>
-                  <span>Distinct vendors represented</span>
-                </article>
-              </div>
-            </div>
-
             <div className="receipt-history">
               {[...grouped.entries()].map(([date, dateReceipts]) => (
                 <section className="receipt-date-group" key={date}>
@@ -384,11 +345,6 @@ export function ReceiptsShell({
                                         <strong>
                                           {displayText(line.name, "Item")}
                                         </strong>
-                                        {displayText(line.description, "") ? (
-                                          <small className="receipt-line-description">
-                                            {displayText(line.description)}
-                                          </small>
-                                        ) : null}
                                       </td>
                                       <td>{displayText(line.category)}</td>
                                       <td>{displayText(line.supplierSku)}</td>
@@ -497,13 +453,11 @@ export function ReceiptsShell({
         )}
       </main>
       <MobileNavigation
-        activeHref="/receipts"
         items={navigation.map(({ label, href, icon }) => ({
           label,
           href,
           icon,
         }))}
-        onNavigate={() => undefined}
       />
     </div>
   );

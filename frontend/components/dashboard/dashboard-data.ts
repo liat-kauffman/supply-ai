@@ -3,7 +3,6 @@ import {
   Box,
   Camera,
   CircleDollarSign,
-  Clock3,
   Home,
   PackageOpen,
   ReceiptText,
@@ -24,8 +23,8 @@ export const navigation: NavigationItem[] = [
   { label: "Inventory", href: "/inventory", icon: Box },
   { label: "Orders", href: "/orders", icon: ShoppingBag },
   { label: "Receipts", href: "/receipts", icon: ReceiptText },
-  { label: "Activity", href: "#activity", icon: Clock3 },
-  { label: "Workers", href: "/company/workers", icon: Users },
+  { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "Team", href: "/company/workers", icon: Users },
 ];
 
 export const metrics: Metric[] = [

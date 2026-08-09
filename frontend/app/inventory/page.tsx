@@ -6,17 +6,23 @@ import { prisma } from "@supply/database";
 
 export default async function InventoryPage() {
   const { organizationId, session } = await requireOnboardedCompany();
-  const [items, organization] = await Promise.all([
+  const [items, organization, storageAreas] = await Promise.all([
     getInventoryItems(organizationId, { includeInactive: true }),
     prisma.organization.findUniqueOrThrow({
       where: { id: organizationId },
       select: { name: true },
+    }),
+    prisma.storageArea.findMany({
+      where: { location: { businessId: organizationId }, active: true },
+      orderBy: [{ location: { name: "asc" } }, { name: "asc" }],
+      select: { id: true, name: true, location: { select: { name: true } } },
     }),
   ]);
   return (
     <InventoryShell
       companyName={displayText(organization.name, "Company")}
       initialItems={items}
+      storageAreas={storageAreas}
       userName={displayText(session.user.name, "User")}
     />
   );

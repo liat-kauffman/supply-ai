@@ -7,6 +7,10 @@ import { FormEvent, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth-client";
 
+function readableError(value: unknown, fallback: string) {
+  return typeof value === "string" && value.trim() ? value : fallback;
+}
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -19,29 +23,55 @@ export function LoginForm() {
     setPending(true);
     setError(null);
     const form = new FormData(event.currentTarget);
-    const result = await authClient.signIn.email({
-      email: String(form.get("email")),
-      password: String(form.get("password")),
-    });
-    setPending(false);
-    if (result.error)
-      return setError(result.error.message ?? "Unable to sign in");
-    router.push(searchParams.get("next") ?? "/");
-    router.refresh();
+    const email = String(form.get("email") ?? "").trim();
+    const password = String(form.get("password") ?? "");
+
+    try {
+      const result = await authClient.signIn.email({ email, password });
+      if (result.error) {
+        const message =
+          result.error.code === "EMAIL_NOT_VERIFIED"
+            ? "Please verify your email before signing in. Check your inbox and spam folder."
+            : result.error.code === "INVALID_EMAIL_OR_PASSWORD"
+              ? "The email or password is incorrect."
+              : readableError(
+                  result.error.message,
+                  "Unable to sign in. Please try again.",
+                );
+        return setError(message);
+      }
+      router.push(searchParams.get("next") ?? "/");
+      router.refresh();
+    } catch {
+      setError(
+        "We could not reach the sign-in service. Check your connection and try again.",
+      );
+    } finally {
+      setPending(false);
+    }
   }
 
   async function tryDemo() {
     setDemoPending(true);
     setError(null);
-    const response = await fetch("/api/demo-login", { method: "POST" });
-    const result = (await response.json().catch(() => null)) as {
-      error?: string;
-    } | null;
-    setDemoPending(false);
-    if (!response.ok)
-      return setError(result?.error ?? "Unable to start the demo");
-    router.push(searchParams.get("next") ?? "/");
-    router.refresh();
+    try {
+      const response = await fetch("/api/demo-login", { method: "POST" });
+      const result = (await response.json().catch(() => null)) as {
+        error?: unknown;
+      } | null;
+      if (!response.ok)
+        return setError(
+          readableError(result?.error, "Unable to start the demo"),
+        );
+      router.push(searchParams.get("next") ?? "/");
+      router.refresh();
+    } catch {
+      setError(
+        "We could not reach the demo service. Check your connection and try again.",
+      );
+    } finally {
+      setDemoPending(false);
+    }
   }
 
   return (

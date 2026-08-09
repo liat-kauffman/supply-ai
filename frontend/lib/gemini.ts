@@ -21,27 +21,29 @@ export async function generateGeminiContent({
   apiKey,
   body,
   timeoutMs = 35_000,
+  maxAttempts = 2,
 }: {
   apiKey: string;
   body: unknown;
   timeoutMs?: number;
+  maxAttempts?: number;
 }): Promise<GeminiResult> {
   const models = [
     ...new Set([
-      process.env.GEMINI_MODEL ?? "gemini-3.5-flash",
-      process.env.GEMINI_FALLBACK_MODEL ?? "gemini-2.5-flash",
+      process.env.GEMINI_MODEL ?? "gemini-3.5-flash-lite",
+      process.env.GEMINI_FALLBACK_MODEL ?? "gemini-3.6-flash",
     ]),
   ];
   let lastResult: GeminiResult = {
     ok: false,
     status: 503,
     payload: null,
-    model: models[0] ?? "gemini-3.5-flash",
+    model: models[0] ?? "gemini-3.5-flash-lite",
     errorMessage: "Gemini is temporarily unavailable",
   };
 
   for (const model of models) {
-    for (let attempt = 0; attempt < 2; attempt += 1) {
+    for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
       if (attempt > 0) await wait(1_000 * 2 ** (attempt - 1));
       try {
         const response = await fetch(

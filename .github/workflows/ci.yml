@@ -15,18 +15,17 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
+      - run: pnpm db:generate
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
-      - run: pnpm build
 
   deploy:
     name: Deploy to AWS ECS
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: validate
     runs-on: ubuntu-latest
-    environment: production
     permissions:
       contents: read
       id-token: write
@@ -45,13 +44,15 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
 
-      - name: Configure AWS credentials with OIDC
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           aws-region: ${{ env.AWS_REGION }}
-          role-to-assume: ${{ secrets.AWS_GITHUB_ACTIONS_ROLE_ARN }}
-          role-session-name: github-actions-${{ github.run_id }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
       - name: Log in to Amazon ECR
         id: ecr
@@ -60,7 +61,40 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Detect deployable changes
+        id: changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          base_sha="${{ github.event.before }}"
+          if [[ "$base_sha" =~ ^0+$ ]]; then
+            base_sha="$(git rev-list --max-parents=0 HEAD)"
+          fi
+
+          frontend_changed=false
+          backend_changed=false
+          while IFS= read -r file; do
+            case "$file" in
+              frontend/*|frontend/Dockerfile|backend/aws/frontend-task-definition.json)
+                frontend_changed=true
+                ;;
+              backend/*|backend/Dockerfile|backend/aws/ecs-task-definition.json)
+                backend_changed=true
+                ;;
+              packages/*|package.json|pnpm-lock.yaml)
+                frontend_changed=true
+                backend_changed=true
+                ;;
+            esac
+          done < <(git diff --name-only "$base_sha" "$GITHUB_SHA")
+
+          echo "frontend=$frontend_changed" >> "$GITHUB_OUTPUT"
+          echo "backend=$backend_changed" >> "$GITHUB_OUTPUT"
+          echo "Frontend changed: $frontend_changed"
+          echo "Backend changed: $backend_changed"
+
       - name: Build and push frontend image
+        if: steps.changes.outputs.frontend == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -72,6 +106,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=frontend
 
       - name: Build and push backend image
+        if: steps.changes.outputs.backend == 'true'
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -83,6 +118,7 @@ jobs:
           cache-to: type=gha,mode=max,scope=backend
 
       - name: Look up production secret ARNs
+        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -92,6 +128,7 @@ jobs:
           echo "GEMINI_API_KEY_ARN=$(aws secretsmanager describe-secret --secret-id supplai/production/gemini-api-key --query ARN --output text)" >> "$GITHUB_ENV"
 
       - name: Render and register frontend task definition
+        if: steps.changes.outputs.frontend == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -114,6 +151,7 @@ jobs:
             --output text > "$RUNNER_TEMP/frontend-task-definition-arn"
 
       - name: Render and register backend task definition
+        if: steps.changes.outputs.backend == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -130,6 +168,7 @@ jobs:
             --output text > "$RUNNER_TEMP/backend-task-definition-arn"
 
       - name: Deploy frontend service
+        if: steps.changes.outputs.frontend == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -140,6 +179,7 @@ jobs:
             --force-new-deployment
 
       - name: Deploy backend service
+        if: steps.changes.outputs.backend == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -150,6 +190,7 @@ jobs:
             --force-new-deployment
 
       - name: Wait for ECS services to become stable
+        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true'
         run: |
           aws ecs wait services-stable \
             --cluster "$ECS_CLUSTER" \

@@ -11,9 +11,8 @@ export function StockHealthCard({ items }: { items: StockItem[] }) {
       <CardHeader>
         <SectionHeading
           title="Stock health"
-          description="Estimated from approved movements and counts."
-          actionLabel="Full inventory"
-          actionHref="#inventory"
+          actionLabel="View inventory"
+          actionHref="/inventory"
         />
       </CardHeader>
       <CardContent className="stock-table">

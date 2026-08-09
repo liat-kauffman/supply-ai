@@ -1,18 +1,30 @@
-import { MoreHorizontal, Settings } from "lucide-react";
+"use client";
+
+import { LogOut, Settings } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { authClient } from "@/lib/auth-client";
 import type { NavigationItem } from "./types";
 
 interface SidebarProps {
   items: NavigationItem[];
-  activeHref: string;
-  onNavigate: (href: string) => void;
   user: { initials: string; name: string; subtitle: string };
 }
 
-export function Sidebar({ items, activeHref, onNavigate, user }: SidebarProps) {
+export function Sidebar({ items, user }: SidebarProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const currentHref = pathname === "/" ? "/" : pathname;
+
+  async function signOut() {
+    await authClient.signOut();
+    router.replace("/login");
+    router.refresh();
+  }
+
   return (
     <aside className="sidebar">
       <Link className="brand" href="/">
@@ -23,33 +35,40 @@ export function Sidebar({ items, activeHref, onNavigate, user }: SidebarProps) {
       </Link>
       <nav aria-label="Main navigation">
         {items.map(({ label, href, icon: ItemIcon, badge }) => (
-          <a
-            className={href === activeHref ? "active" : undefined}
+          <Link
+            className={href === currentHref ? "active" : undefined}
             href={href}
             key={href}
-            onClick={() => onNavigate(href)}
+            aria-current={href === currentHref ? "page" : undefined}
           >
             <ItemIcon />
             {label}
             {badge ? <Badge className="nav-badge">{badge}</Badge> : null}
-          </a>
+          </Link>
         ))}
       </nav>
       <div className="sidebar-bottom">
-        <a href="#settings">
+        <Link href="/profile">
           <Settings />
-          Settings
-        </a>
+          Profile & settings
+        </Link>
         <div className="profile">
-          <Avatar className="avatar">
-            <AvatarFallback>{user.initials}</AvatarFallback>
-          </Avatar>
-          <span>
-            <strong>{user.name}</strong>
-            <small>{user.subtitle}</small>
-          </span>
-          <Button aria-label="Profile menu" size="icon" variant="ghost">
-            <MoreHorizontal />
+          <Link className="profile-info" href="/profile">
+            <Avatar className="avatar">
+              <AvatarFallback>{user.initials}</AvatarFallback>
+            </Avatar>
+            <span>
+              <strong>{user.name}</strong>
+              <small>{user.subtitle}</small>
+            </span>
+          </Link>
+          <Button
+            aria-label="Sign out"
+            onClick={signOut}
+            size="icon"
+            variant="ghost"
+          >
+            <LogOut />
           </Button>
         </div>
       </div>

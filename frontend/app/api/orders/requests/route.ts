@@ -2,7 +2,7 @@ import { prisma } from "@supply/database";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { ApiAccessError, requireApiCompany } from "@/lib/auth/api";
+import { apiErrorResponse, requireApiCompany } from "@/lib/auth/api";
 import { displayText, finiteNumber, finiteNumberOrNull } from "@/lib/display";
 import { getOrderApprovalRequests } from "@/lib/orders";
 
@@ -35,16 +35,7 @@ export async function GET() {
     );
     return NextResponse.json({ requests });
   } catch (error) {
-    if (error instanceof ApiAccessError)
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
-    console.error(error);
-    return NextResponse.json(
-      { error: "Unable to load supplier orders" },
-      { status: 500 },
-    );
+    return apiErrorResponse(error, "Unable to load supplier orders");
   }
 }
 
@@ -194,15 +185,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ id: created.id, ok: true }, { status: 201 });
   } catch (error) {
-    if (error instanceof ApiAccessError)
-      return NextResponse.json(
-        { error: error.message },
-        { status: error.status },
-      );
-    console.error(error);
-    return NextResponse.json(
-      { error: "Unable to request basket approval" },
-      { status: 500 },
-    );
+    return apiErrorResponse(error, "Unable to request basket approval");
   }
 }

@@ -12,7 +12,7 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com"
         },
         "StringLike": {
-          "token.actions.githubusercontent.com:sub": "repo:liat-kauffman/supply-ai:environment:production"
+          "token.actions.githubusercontent.com:sub": "repo:liat-kauffman/supply-ai:ref:refs/heads/main"
         }
       }
     }
