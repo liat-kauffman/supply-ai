@@ -2,13 +2,17 @@ import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
-function hasReceiptDelegates(client: PrismaClient) {
-  return "receipt" in client && "receiptLine" in client;
+function hasRequiredDelegates(client: PrismaClient) {
+  return (
+    "receipt" in client &&
+    "receiptLine" in client &&
+    "aiWorkspaceMessage" in client
+  );
 }
 
 const cachedPrisma = globalForPrisma.prisma;
 
-if (cachedPrisma && !hasReceiptDelegates(cachedPrisma)) {
+if (cachedPrisma && !hasRequiredDelegates(cachedPrisma)) {
   void cachedPrisma.$disconnect().catch(() => undefined);
   globalForPrisma.prisma = undefined;
 }

@@ -8,21 +8,33 @@ import {
   Sparkles,
   ThumbsDown,
   ThumbsUp,
+  Trash2,
 } from "lucide-react";
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { MobileNavigation } from "@/components/dashboard/mobile-navigation";
 import { navigation } from "@/components/dashboard/dashboard-data";
 import { Sidebar } from "@/components/dashboard/sidebar";
 import { Button } from "@/components/ui/button";
+import {
+  aiWorkspaceRecoverySuggestions,
+  needsAiWorkspaceSuggestions,
+  suggestionsForAiWorkspaceAnswer,
+} from "@/lib/ai-workspace-suggestions";
 
 type Message = {
   id?: string;
   role: "user" | "assistant";
   text: string;
   exportUrl?: string | null;
+  suggestions?: readonly string[] | null;
   context?: { period: string; sources: string[]; limitations: string };
   feedback?: "positive" | "negative";
+};
+
+const welcomeMessage: Message = {
+  role: "assistant",
+  text: "I’m your Supplai business analyst. Ask me about spend, inventory, suppliers, orders, or a report you want to build.",
 };
 
 function AnswerText({ text }: { text: string }) {
@@ -79,14 +91,11 @@ export function AiWorkspaceShell({
     .join("")
     .slice(0, 2)
     .toUpperCase();
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      text: "I’m your Supplai business analyst. Ask me about spend, inventory, suppliers, orders, or a report you want to build.",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([welcomeMessage]);
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [clearing, setClearing] = useState(false);
+  const messageListRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -107,6 +116,10 @@ export function AiWorkspaceShell({
                 id: message.id,
                 role: message.role as Message["role"],
                 text: message.content,
+                suggestions:
+                  message.role === "assistant"
+                    ? suggestionsForAiWorkspaceAnswer(message.content)
+                    : null,
               })),
           );
         },
@@ -116,6 +129,17 @@ export function AiWorkspaceShell({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      const messageList = messageListRef.current;
+      messageList?.scrollTo({
+        top: messageList.scrollHeight,
+        behavior: "smooth",
+      });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [loading, messages]);
 
   async function ask(question: string) {
     const trimmed = question.trim();
@@ -133,6 +157,7 @@ export function AiWorkspaceShell({
         answer?: string;
         messageId?: string;
         exportUrl?: string | null;
+        suggestions?: string[] | null;
         context?: Message["context"];
         error?: string;
       };
@@ -145,18 +170,23 @@ export function AiWorkspaceShell({
           role: "assistant",
           text: result.answer ?? "I could not create an answer yet.",
           exportUrl: result.exportUrl,
+          suggestions: result.suggestions,
           context: result.context,
         },
       ]);
     } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Something went wrong. Try again.";
       setMessages((current) => [
         ...current,
         {
           role: "assistant",
-          text:
-            error instanceof Error
-              ? error.message
-              : "Something went wrong. Try again.",
+          text: errorMessage,
+          suggestions: needsAiWorkspaceSuggestions(errorMessage)
+            ? aiWorkspaceRecoverySuggestions
+            : null,
         },
       ]);
     } finally {
@@ -178,6 +208,38 @@ export function AiWorkspaceShell({
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ messageId, rating }),
     });
+  }
+
+  async function clearChat() {
+    if (
+      !window.confirm(
+        "Delete your AI workspace chat history for this company? This cannot be undone.",
+      )
+    )
+      return;
+    setClearing(true);
+    try {
+      const response = await fetch("/api/ai-workspace", { method: "DELETE" });
+      const result = (await response.json()) as { error?: string };
+      if (!response.ok)
+        throw new Error(result.error ?? "Unable to clear the chat.");
+      setMessages([welcomeMessage]);
+    } catch (error) {
+      window.alert(
+        error instanceof Error ? error.message : "Unable to clear the chat.",
+      );
+    } finally {
+      setClearing(false);
+    }
+  }
+
+  function chooseSuggestion(messageIndex: number, suggestion: string) {
+    setMessages((current) =>
+      current.map((message, index) =>
+        index === messageIndex ? { ...message, suggestions: null } : message,
+      ),
+    );
+    void ask(suggestion);
   }
 
   function submit(event: FormEvent<HTMLFormElement>) {
@@ -212,18 +274,41 @@ export function AiWorkspaceShell({
               <div className="ai-chat-avatar">
                 <Sparkles />
               </div>
-              <div>
+              <div className="ai-chat-title">
                 <strong>Supplai analyst</strong>
                 <span>Grounded in your business records</span>
               </div>
+              <button
+                className="ai-clear-chat"
+                disabled={clearing || loading || messages.length === 1}
+                onClick={() => void clearChat()}
+                type="button"
+              >
+                <Trash2 />
+                {clearing ? "Clearing…" : "Clear chat"}
+              </button>
             </div>
-            <div className="ai-message-list">
+            <div className="ai-message-list" ref={messageListRef}>
               {messages.map((message, index) => (
                 <div
                   className={`ai-message ${message.role}`}
                   key={`${message.role}-${index}`}
                 >
                   <AnswerText text={message.text} />
+                  {message.suggestions?.length ? (
+                    <div className="ai-recovery-suggestions">
+                      {message.suggestions.map((suggestion) => (
+                        <button
+                          disabled={loading}
+                          key={suggestion}
+                          onClick={() => chooseSuggestion(index, suggestion)}
+                          type="button"
+                        >
+                          {suggestion}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
                   {message.exportUrl ? (
                     <a className="ai-export-link" href={message.exportUrl}>
                       <FileSpreadsheet /> Download Excel report
@@ -231,13 +316,6 @@ export function AiWorkspaceShell({
                   ) : null}
                   {message.role === "assistant" && message.id ? (
                     <div className="ai-message-tools">
-                      {message.context ? (
-                        <span
-                          title={`${message.context.sources.join(", ")}. ${message.context.limitations}`}
-                        >
-                          {message.context.period}
-                        </span>
-                      ) : null}
                       <button
                         className={
                           message.feedback === "positive" ? "selected" : ""

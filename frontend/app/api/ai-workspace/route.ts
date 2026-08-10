@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 
 import { apiErrorResponse, requireApiCompany } from "@/lib/auth/api";
 import { getAnalyticsData } from "@/lib/analytics";
+import {
+  reportForPrompt,
+  wantsWeeklyReceiptPreVatReport,
+} from "@/lib/ai-workspace-reports";
+import { suggestionsForAiWorkspaceAnswer } from "@/lib/ai-workspace-suggestions";
 import { generateGeminiContent } from "@/lib/gemini";
 import { getInventoryItems } from "@/lib/inventory";
 import { displayMoney } from "@/lib/display";
@@ -32,6 +37,9 @@ function fallbackAnswer(
   schedules: SupplierSchedule[],
 ) {
   const normalized = prompt.toLowerCase();
+  if (wantsWeeklyReceiptPreVatReport(prompt)) {
+    return "I created a weekly receipt summary with exactly two columns: the Sunday week-start date and the total before VAT. Use the Excel download below.";
+  }
   if (
     (normalized.includes("add") || normalized.includes("expand")) &&
     (normalized.includes("product") || normalized.includes("item"))
@@ -96,6 +104,30 @@ function fallbackAnswer(
       ? `\n\n${explicitlyRequested.join(" and ")} ${explicitlyRequested.length === 1 ? "is" : "are"} not currently tracked as inventory, so I cannot verify ${explicitlyRequested.length === 1 ? "its" : "their"} shortage.`
       : "";
     return `Based on the current catalog, the items short are:\n${lowStockSummary}${untrackedNote}`;
+  }
+  if (
+    /reduce|save|saving|cut|lower|opportunit|optimiz/.test(normalized) &&
+    /cost|spend|purchas|supplier|expense/.test(normalized)
+  ) {
+    const topSupplier = analytics.supplierSpend[0];
+    const frequentSupplier = [...analytics.supplierSpend].sort(
+      (left, right) => right.receiptCount - left.receiptCount,
+    )[0];
+    const lowStock = inventory.filter(
+      (item) => item.status === "low" || item.status === "out",
+    );
+    const opportunities = [
+      topSupplier
+        ? `Benchmark ${topSupplier.name}'s prices or request volume pricing. It has the highest recorded six-month spend at ${displayMoney(topSupplier.spend, analytics.currency)} across ${topSupplier.receiptCount} receipt${topSupplier.receiptCount === 1 ? "" : "s"}.`
+        : "Add supplier receipt data so Supplai can identify where price comparisons would have the most impact.",
+      frequentSupplier
+        ? `Review whether ${frequentSupplier.name}'s ${frequentSupplier.receiptCount} purchases can be consolidated around its order days. Fewer purchases may reduce delivery fees, but confirm minimums and storage capacity first.`
+        : "Track purchase frequency by supplier to find orders that could be consolidated.",
+      lowStock.length
+        ? `Plan replenishment for ${lowStock.map((item) => item.name).join(", ")} before stock becomes urgent. ${lowStock.length} tracked item${lowStock.length === 1 ? " is" : "s are"} currently below minimum, where avoiding emergency purchases may reduce cost.`
+        : "No tracked items are currently below minimum stock, so there is no immediate emergency-purchase signal in the inventory data.",
+    ];
+    return `The current records point to three places worth investigating. These are opportunities to validate, not guaranteed savings:\n${opportunities.map((opportunity) => `- ${opportunity}`).join("\n")}`;
   }
   if (normalized.includes("supplier") || normalized.includes("vendor")) {
     const suppliers = analytics.supplierSpend
@@ -239,7 +271,7 @@ function fallbackAnswer(
       ? `You currently have ${lowStock.length} item${lowStock.length === 1 ? "" : "s"} below the healthy stock threshold: ${lowStock.map((item) => item.name).join(", ")}. The next useful step is to review supplier availability before the next cutoff.`
       : "Your active inventory is currently above its minimum levels. I would keep monitoring recent movement and supplier cutoffs before placing the next order.";
   }
-  return `I don't have enough structured data to answer “${prompt}” yet. I can answer exact questions about your recorded spend, receipts, suppliers, orders, stock levels, or specific inventory items.`;
+  return "I’m here to help with your business. You can ask me about inventory, supplier spending, recent receipts, orders, or creating a report. Choose an option below to get started.";
 }
 
 export async function POST(request: Request) {
@@ -253,6 +285,7 @@ export async function POST(request: Request) {
         { error: "Ask the AI workspace a question first." },
         { status: 400 },
       );
+    const weeklyReceiptPreVatReport = wantsWeeklyReceiptPreVatReport(prompt);
 
     const [analytics, inventory, schedules, history] = await Promise.all([
       getAnalyticsData(organizationId),
@@ -294,7 +327,7 @@ export async function POST(request: Request) {
     };
     let answer = fallbackAnswer(prompt, analytics, inventory, schedules);
     const apiKey = process.env.GEMINI_API_KEY;
-    if (apiKey) {
+    if (apiKey && !weeklyReceiptPreVatReport) {
       const result = await generateGeminiContent({
         apiKey,
         timeoutMs: 20_000,
@@ -323,12 +356,17 @@ export async function POST(request: Request) {
         .trim();
       if (result.ok && aiText) answer = aiText;
     }
-    const wantsExport = /excel|spreadsheet|xlsx|csv|sheet|report/i.test(prompt);
-    const exportUrl = /receipt|purchase/i.test(prompt)
-      ? "/api/receipts/export"
-      : /supplier|vendor/i.test(prompt)
-        ? "/api/ai-workspace/export?report=suppliers"
-        : "/api/ai-workspace/export?report=inventory";
+    const report = reportForPrompt(prompt);
+    const exportUrl =
+      report === "receipts"
+        ? "/api/receipts/export"
+        : report
+          ? `/api/ai-workspace/export?report=${report}`
+          : null;
+    if (/excel|spreadsheet|xlsx|csv|sheet|report/i.test(prompt) && !report) {
+      answer =
+        "I can create inventory, receipt, or supplier spreadsheets. Choose which report you want to create below, or describe one of those reports in more detail.";
+    }
     await prisma.aiWorkspaceMessage.create({
       data: {
         businessId: organizationId,
@@ -349,7 +387,8 @@ export async function POST(request: Request) {
     return NextResponse.json({
       answer,
       messageId: assistantMessage.id,
-      exportUrl: wantsExport ? exportUrl : null,
+      exportUrl,
+      suggestions: suggestionsForAiWorkspaceAnswer(answer),
       context: {
         period:
           "Current workspace records and the last six months of purchasing data",
@@ -375,5 +414,17 @@ export async function GET() {
     return NextResponse.json({ messages });
   } catch (error) {
     return apiErrorResponse(error, "Unable to load AI workspace history");
+  }
+}
+
+export async function DELETE() {
+  try {
+    const { organizationId, userId } = await requireApiCompany();
+    const result = await prisma.aiWorkspaceMessage.deleteMany({
+      where: { businessId: organizationId, userId },
+    });
+    return NextResponse.json({ ok: true, deleted: result.count });
+  } catch (error) {
+    return apiErrorResponse(error, "Unable to clear AI workspace history");
   }
 }
