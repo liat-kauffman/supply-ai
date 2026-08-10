@@ -21,7 +21,8 @@
       ],
       "Resource": [
         "arn:aws:ecr:us-east-1:439777529311:repository/supplai-frontend",
-        "arn:aws:ecr:us-east-1:439777529311:repository/supplai-backend"
+        "arn:aws:ecr:us-east-1:439777529311:repository/supplai-backend",
+        "arn:aws:ecr:us-east-1:439777529311:repository/supplai-migrations"
       ]
     },
     {
@@ -44,6 +45,23 @@
         "arn:aws:ecs:us-east-1:439777529311:service/supplai-production/supplai-frontend",
         "arn:aws:ecs:us-east-1:439777529311:service/supplai-production/supplai-backend"
       ]
+    },
+    {
+      "Sid": "RunSupplaiDatabaseMigrations",
+      "Effect": "Allow",
+      "Action": "ecs:RunTask",
+      "Resource": "arn:aws:ecs:us-east-1:439777529311:task-definition/supplai-database-migration:*",
+      "Condition": {
+        "ArnEquals": {
+          "ecs:cluster": "arn:aws:ecs:us-east-1:439777529311:cluster/supplai-production"
+        }
+      }
+    },
+    {
+      "Sid": "InspectSupplaiDatabaseMigrations",
+      "Effect": "Allow",
+      "Action": "ecs:DescribeTasks",
+      "Resource": "*"
     },
     {
       "Sid": "PassEcsExecutionRole",

@@ -45,7 +45,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 0
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
@@ -73,6 +73,12 @@ jobs:
 
           frontend_changed=false
           backend_changed=false
+          database_changed=false
+          if ! git cat-file -e "$base_sha^{commit}"; then
+            echo "Base commit $base_sha is unavailable; refusing to skip deployment."
+            exit 1
+          fi
+          changed_files="$(git diff --name-only "$base_sha" "$GITHUB_SHA")"
           while IFS= read -r file; do
             case "$file" in
               frontend/*|frontend/Dockerfile|backend/aws/frontend-task-definition.json)
@@ -85,13 +91,25 @@ jobs:
                 frontend_changed=true
                 backend_changed=true
                 ;;
+              .github/workflows/ci.yml|backend/aws/github-actions-deploy-policy.json)
+                frontend_changed=true
+                backend_changed=true
+                database_changed=true
+                ;;
             esac
-          done < <(git diff --name-only "$base_sha" "$GITHUB_SHA")
+            case "$file" in
+              packages/database/prisma/migrations/*|packages/database/prisma/schema.prisma|backend/aws/migration-task-definition.json|backend/aws/migrations.Dockerfile)
+                database_changed=true
+                ;;
+            esac
+          done <<< "$changed_files"
 
           echo "frontend=$frontend_changed" >> "$GITHUB_OUTPUT"
           echo "backend=$backend_changed" >> "$GITHUB_OUTPUT"
+          echo "database=$database_changed" >> "$GITHUB_OUTPUT"
           echo "Frontend changed: $frontend_changed"
           echo "Backend changed: $backend_changed"
+          echo "Database changed: $database_changed"
 
       - name: Build and push frontend image
         if: steps.changes.outputs.frontend == 'true'
@@ -117,8 +135,20 @@ jobs:
           cache-from: type=gha,scope=backend
           cache-to: type=gha,mode=max,scope=backend
 
+      - name: Build and push migration image
+        if: steps.changes.outputs.database == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: backend/aws/migrations.Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/supplai-migrations:${{ env.IMAGE_TAG }}
+          cache-from: type=gha,scope=migrations
+          cache-to: type=gha,mode=max,scope=migrations
+
       - name: Look up production secret ARNs
-        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true'
+        if: steps.changes.outputs.frontend == 'true' || steps.changes.outputs.backend == 'true' || steps.changes.outputs.database == 'true'
         shell: bash
         run: |
           set -euo pipefail
@@ -166,6 +196,61 @@ jobs:
             --cli-input-json "file://$RUNNER_TEMP/backend-task-definition.json" \
             --query 'taskDefinition.taskDefinitionArn' \
             --output text > "$RUNNER_TEMP/backend-task-definition-arn"
+
+      - name: Render and register migration task definition
+        if: steps.changes.outputs.database == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          sed \
+            -e "s|<AWS_ACCOUNT_ID>|$AWS_ACCOUNT_ID|g" \
+            -e "s|<AWS_REGION>|$AWS_REGION|g" \
+            -e "s|<IMAGE_TAG>|$IMAGE_TAG|g" \
+            -e "s|<DATABASE_URL_SECRET_ARN>|$DATABASE_URL_SECRET_ARN|g" \
+            backend/aws/migration-task-definition.json \
+            > "$RUNNER_TEMP/migration-task-definition.json"
+          ! grep -Eq '<[^>]+>|REPLACE_WITH' "$RUNNER_TEMP/migration-task-definition.json"
+          aws ecs register-task-definition \
+            --cli-input-json "file://$RUNNER_TEMP/migration-task-definition.json" \
+            --query 'taskDefinition.taskDefinitionArn' \
+            --output text > "$RUNNER_TEMP/migration-task-definition-arn"
+
+      - name: Apply database migrations
+        if: steps.changes.outputs.database == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          network_configuration="$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER" \
+            --services "$FRONTEND_SERVICE" \
+            --query 'services[0].networkConfiguration' \
+            --output json)"
+          run_result="$(aws ecs run-task \
+            --cluster "$ECS_CLUSTER" \
+            --launch-type FARGATE \
+            --platform-version LATEST \
+            --network-configuration "$network_configuration" \
+            --task-definition "$(<"$RUNNER_TEMP/migration-task-definition-arn")")"
+          if [[ "$(jq '.failures | length' <<< "$run_result")" != "0" ]]; then
+            jq '.failures' <<< "$run_result"
+            exit 1
+          fi
+          migration_task_arn="$(jq -r '.tasks[0].taskArn // empty' <<< "$run_result")"
+          if [[ -z "$migration_task_arn" ]]; then
+            echo "ECS did not return a migration task ARN."
+            exit 1
+          fi
+          aws ecs wait tasks-stopped \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "$migration_task_arn"
+          migration_result="$(aws ecs describe-tasks \
+            --cluster "$ECS_CLUSTER" \
+            --tasks "$migration_task_arn")"
+          exit_code="$(jq -r '.tasks[0].containers[] | select(.name == "migration") | .exitCode // empty' <<< "$migration_result")"
+          if [[ "$exit_code" != "0" ]]; then
+            jq '{stoppedReason: .tasks[0].stoppedReason, containers: [.tasks[0].containers[] | {name, exitCode, reason}]}' <<< "$migration_result"
+            exit 1
+          fi
 
       - name: Deploy frontend service
         if: steps.changes.outputs.frontend == 'true'
