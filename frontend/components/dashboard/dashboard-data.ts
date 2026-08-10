@@ -7,6 +7,7 @@ import {
   PackageOpen,
   ReceiptText,
   ShoppingBag,
+  Sparkles,
   TriangleAlert,
   Users,
 } from "lucide-react";
@@ -24,6 +25,7 @@ export const navigation: NavigationItem[] = [
   { label: "Orders", href: "/orders", icon: ShoppingBag },
   { label: "Receipts", href: "/receipts", icon: ReceiptText },
   { label: "Analytics", href: "/analytics", icon: BarChart3 },
+  { label: "AI workspace", href: "/ai-workspace", icon: Sparkles },
   { label: "Team", href: "/company/workers", icon: Users },
 ];
 
@@ -31,6 +33,7 @@ export const metrics: Metric[] = [
   {
     label: "Waiting for review",
     value: "3",
+    href: "/receipts",
     emphasis: "2 receipts",
     detail: "and 1 order",
     icon: ReceiptText,
@@ -39,6 +42,7 @@ export const metrics: Metric[] = [
   {
     label: "Low stock items",
     value: "6",
+    href: "/inventory",
     emphasis: "2 critical",
     detail: "before tomorrow",
     icon: TriangleAlert,
@@ -47,6 +51,7 @@ export const metrics: Metric[] = [
   {
     label: "Orders this week",
     value: "₪2,840",
+    href: "/orders",
     emphasis: "↓ 8%",
     detail: "from last week",
     trend: "down",
@@ -56,6 +61,7 @@ export const metrics: Metric[] = [
   {
     label: "Stock confidence",
     value: "87%",
+    href: "/inventory",
     emphasis: "↑ 4%",
     detail: "after yesterday’s count",
     trend: "up",
@@ -70,6 +76,7 @@ export const tasks: AttentionTask[] = [
     title: "Review Fresh Fields receipt",
     detail: "8 lines · AI confidence 92%",
     tag: "Approval",
+    href: "/receipts",
     tone: "amber",
   },
   {
@@ -77,6 +84,7 @@ export const tasks: AttentionTask[] = [
     title: "Check under-counter fridge",
     detail: "Milk count is 2 days old",
     tag: "1 photo",
+    href: "/inventory",
     tone: "mint",
   },
   {
@@ -84,6 +92,7 @@ export const tasks: AttentionTask[] = [
     title: "Approve dairy order",
     detail: "Cutoff today at 14:00",
     tag: "₪486",
+    href: "/orders",
     tone: "blue",
   },
 ];

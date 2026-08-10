@@ -5,6 +5,16 @@ updates:
     schedule: { interval: weekly }
     groups:
       production-dependencies: { dependency-type: production }
+    ignore:
+      # These major upgrades require coordinated application migrations.
+      - dependency-name: next
+        update-types: ["version-update:semver-major"]
+      - dependency-name: eslint-config-next
+        update-types: ["version-update:semver-major"]
+      - dependency-name: prisma
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@prisma/client"
+        update-types: ["version-update:semver-major"]
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: monthly }

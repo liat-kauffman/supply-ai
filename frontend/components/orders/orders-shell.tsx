@@ -114,10 +114,10 @@ function requestDate(value: string) {
 function approvedList(request: OrderApprovalRequest) {
   const lines = request.lines
     .filter((line) => line.packageCount > 0)
-    .map((line) => {
-      const sku = line.supplierSku ? ` · SKU ${line.supplierSku}` : "";
-      return `${line.productName}: ${line.packageCount} package${line.packageCount === 1 ? "" : "s"} (${quantity(line.requestedQuantity)} ${unitLabel(line.unit)})${sku}`;
-    });
+    .map(
+      (line) =>
+        `${line.productName}: ${line.packageCount} package${line.packageCount === 1 ? "" : "s"} (${quantity(line.requestedQuantity)} ${unitLabel(line.unit)})`,
+    );
   return [
     `Order for ${request.supplierName}`,
     `Prepared from ${request.requesterName}'s basket`,
@@ -637,11 +637,6 @@ export function OrdersShell({
                     <div className="approval-line" key={item.productId}>
                       <div>
                         <strong>{item.productName}</strong>
-                        <small>
-                          {item.supplierSku
-                            ? `SKU ${item.supplierSku}`
-                            : "No supplier SKU"}
-                        </small>
                       </div>
                       <label>
                         <span>Packages to order</span>
@@ -869,10 +864,7 @@ export function OrdersShell({
                           <div>
                             <strong>{line.productName}</strong>
                             <small>
-                              {line.supplierSku
-                                ? `SKU ${line.supplierSku}`
-                                : "No supplier SKU"}{" "}
-                              · package size {quantity(line.unitsPerPackage)}{" "}
+                              Package size {quantity(line.unitsPerPackage)}{" "}
                               {unitLabel(line.unit)}
                             </small>
                           </div>
@@ -1323,11 +1315,6 @@ export function OrdersShell({
                                 <strong>
                                   {displayText(item.productName, "Item")}
                                 </strong>
-                                <small>
-                                  {item.supplierSku
-                                    ? `SKU ${item.supplierSku}`
-                                    : "No supplier SKU"}
-                                </small>
                               </td>
                               <td data-label="On hand">
                                 {quantity(item.currentQuantity)}{" "}

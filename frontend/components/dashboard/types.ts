@@ -13,6 +13,7 @@ export interface Metric {
   label: string;
   value: string;
   detail: string;
+  href: string;
   emphasis?: string;
   trend?: "up" | "down";
   icon: LucideIcon;
@@ -23,6 +24,7 @@ export interface AttentionTask {
   title: string;
   detail: string;
   tag: string;
+  href: string;
   icon: LucideIcon;
   tone: "amber" | "mint" | "blue";
 }

@@ -56,6 +56,7 @@ model BusinessProfile {
   auditEvents           AuditEvent[]
   orderBasketRequests   OrderBasketRequest[]
   inventoryScans        InventoryScan[]
+  aiWorkspaceMessages   AiWorkspaceMessage[]
 }
 
 model User {
@@ -81,6 +82,7 @@ model User {
   reviewedOrderBaskets  OrderBasketRequest[] @relation("OrderBasketReviewer")
   createdInventoryScans InventoryScan[]      @relation("InventoryScanCreator")
   reviewedInventoryScans InventoryScan[]     @relation("InventoryScanReviewer")
+  aiWorkspaceMessages AiWorkspaceMessage[]
 }
 
 model Session {
@@ -353,6 +355,19 @@ model AuditEvent {
   actor      User?           @relation(fields: [actorId], references: [id])
 
   @@index([businessId, occurredAt])
+}
+
+model AiWorkspaceMessage {
+  id         String          @id @default(cuid())
+  businessId String
+  userId     String
+  role       String
+  content    String
+  createdAt  DateTime        @default(now())
+  business   BusinessProfile @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([businessId, userId, createdAt])
 }
 
 model OrderBasketRequest {

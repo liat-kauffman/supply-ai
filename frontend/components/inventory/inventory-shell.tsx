@@ -16,7 +16,6 @@ import {
   PackagePlus,
   PencilLine,
   Power,
-  ReceiptText,
   Search,
   SlidersHorizontal,
   Sparkles,
@@ -25,7 +24,6 @@ import {
   X,
 } from "lucide-react";
 import { FormEvent, useMemo, useState } from "react";
-import Link from "next/link";
 
 import { MobileNavigation } from "@/components/dashboard/mobile-navigation";
 import { navigation } from "@/components/dashboard/dashboard-data";
@@ -465,12 +463,6 @@ export function InventoryShell({
             <Button onClick={() => setIsScanningArea(true)} variant="outline">
               <Camera />
               <span className="action-copy">Scan area with AI</span>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/receipts/import">
-                <ReceiptText />
-                <span className="action-copy">Import supplier receipts</span>
-              </Link>
             </Button>
             <Button className="primary" onClick={() => setIsAdding(true)}>
               <PackagePlus />

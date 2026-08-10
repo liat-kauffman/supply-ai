@@ -2,19 +2,12 @@
 
 import {
   BarChart3,
-  Camera,
   CircleDollarSign,
-  PackageOpen,
   ReceiptText,
   TriangleAlert,
 } from "lucide-react";
 import { useState } from "react";
-import { CheckCircle2, X } from "lucide-react";
-
-import { Button } from "@/components/ui/button";
-import { useDashboardStore } from "@/stores/dashboard-store";
 import { navigation } from "./dashboard-data";
-import { AttentionPanel } from "./attention-panel";
 import { DashboardHeader } from "./dashboard-header";
 import { InsightCard } from "./insight-card";
 import { MetricsGrid } from "./metric-card";
@@ -32,16 +25,7 @@ export function DashboardShell({
   userName: string;
   dashboard: DashboardData;
 }) {
-  const acknowledgedTasks = useDashboardStore(
-    (state) => state.acknowledgedTasks,
-  );
-  const message = useDashboardStore((state) => state.message);
-  const acknowledgeTask = useDashboardStore((state) => state.acknowledgeTask);
-  const showMessage = useDashboardStore((state) => state.showMessage);
-  const clearMessage = useDashboardStore((state) => state.clearMessage);
-  const [notificationCount, setNotificationCount] = useState(
-    dashboard.tasks.length,
-  );
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const metrics = dashboard.metrics.map((metric) => ({
     ...metric,
@@ -55,19 +39,6 @@ export function DashboardShell({
             : BarChart3,
   }));
 
-  const tasks = dashboard.tasks.map((task) => ({
-    ...task,
-    icon:
-      task.icon === "receipt"
-        ? ReceiptText
-        : task.icon === "camera"
-          ? Camera
-          : PackageOpen,
-  }));
-
-  const visibleTasks = tasks.filter(
-    (task) => !acknowledgedTasks.includes(task.title),
-  );
   const initials = userName
     .split(/\s+/)
     .map((part) => part[0])
@@ -77,44 +48,28 @@ export function DashboardShell({
   const firstName = userName.split(/\s+/)[0] || userName;
 
   return (
-    <div className="app-shell">
+    <div
+      className={`app-shell today-shell${sidebarCollapsed ? " sidebar-collapsed" : ""}`}
+    >
       <Sidebar
         items={navigation}
+        onCollapsedChange={setSidebarCollapsed}
         user={{
           initials,
           name: userName,
           subtitle: companyName,
         }}
       />
-      <main>
+      <main className="today-main">
         <DashboardHeader
           eyebrow={dashboard.headerEyebrow}
           title={`Good morning, ${firstName}.`}
           subtitle="Here’s what needs your attention today."
-          actionLabel="Add stock update"
-          notificationCount={notificationCount}
-          onNotificationsClick={() => setNotificationCount(0)}
-          onAction={() =>
-            showMessage("Stock update workflow is ready to open.")
-          }
+          actionLabel="Update inventory"
+          actionHref="/inventory"
         />
-        {message ? (
-          <div className="store-message" role="status">
-            <CheckCircle2 />
-            <span>{message}</span>
-            <Button
-              aria-label="Dismiss message"
-              size="icon"
-              variant="ghost"
-              onClick={clearMessage}
-            >
-              <X />
-            </Button>
-          </div>
-        ) : null}
         <MetricsGrid metrics={metrics} />
-        <div className="dashboard-grid">
-          <AttentionPanel tasks={visibleTasks} onTaskOpen={acknowledgeTask} />
+        <div className="today-grid">
           <SupplierCutoffCard
             supplier={dashboard.supplier}
             nextSupplier={dashboard.nextSupplier}

@@ -61,13 +61,13 @@ export function LoginForm() {
       } | null;
       if (!response.ok)
         return setError(
-          readableError(result?.error, "Unable to start the demo"),
+          readableError(result?.error, "Unable to open the workspace"),
         );
       router.push(searchParams.get("next") ?? "/");
       router.refresh();
     } catch {
       setError(
-        "We could not reach the demo service. Check your connection and try again.",
+        "We could not reach the workspace service. Check your connection and try again.",
       );
     } finally {
       setDemoPending(false);
@@ -107,7 +107,7 @@ export function LoginForm() {
         type="button"
         variant="outline"
       >
-        {demoPending ? "Opening demo…" : "Explore the demo"}
+        {demoPending ? "Opening workspace…" : "Explore the workspace"}
       </Button>
       <small>
         Registering a company?{" "}

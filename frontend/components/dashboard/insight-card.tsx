@@ -1,4 +1,5 @@
 import { ArrowRight, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,7 +26,7 @@ export function InsightCard({
         <div className="sparkle">
           <Sparkles />
         </div>
-        <div>
+        <div className="insight-copy">
           <span className="ai-label">
             {source === "ai" ? "SUPPLAI AI INSIGHT" : "SUPPLAI INSIGHT"}
           </span>
@@ -49,8 +50,10 @@ export function InsightCard({
               )}
             </Badge>
           </div>
-          <Button variant="link">
-            View recommendation <ArrowRight />
+          <Button asChild variant="link">
+            <Link href="/ai-workspace">
+              Open AI workspace <ArrowRight />
+            </Link>
           </Button>
         </div>
       </CardContent>

@@ -752,19 +752,6 @@ export function BaseDataOnboarding({
                         />
                       </label>
                       <label>
-                        Supplier SKU <span>Optional</span>
-                        <input
-                          value={item.supplierSku}
-                          onChange={(event) =>
-                            updateItem(
-                              item.id,
-                              "supplierSku",
-                              event.target.value,
-                            )
-                          }
-                        />
-                      </label>
-                      <label>
                         Packages bought
                         <input
                           min="0"

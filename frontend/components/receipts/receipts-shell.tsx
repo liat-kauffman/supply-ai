@@ -1,18 +1,18 @@
 "use client";
 
 import {
-  BadgeCheck,
   Building2,
   CalendarDays,
-  Download,
   FileSpreadsheet,
   FolderArchive,
   Hash,
   PackageCheck,
   ReceiptText,
   Sparkles,
+  X,
 } from "lucide-react";
 import Link from "next/link";
+import { useState } from "react";
 
 import { MobileNavigation } from "@/components/dashboard/mobile-navigation";
 import { navigation } from "@/components/dashboard/dashboard-data";
@@ -60,6 +60,94 @@ const dateFormatter = new Intl.DateTimeFormat("en-GB", {
   timeZone: "UTC",
 });
 
+function ReceiptDetails({ receipt }: { receipt: ReceiptHistoryItem }) {
+  return (
+    <div className="receipt-modal-content">
+      <div className="receipt-modal-stats">
+        <span>
+          <small>Supplier</small>
+          <strong>{displayText(receipt.supplier, "Supplier")}</strong>
+        </span>
+        <span>
+          <small>Receipt date</small>
+          <strong>
+            {dateFormatter.format(new Date(`${receipt.receiptDate}T12:00:00Z`))}
+          </strong>
+        </span>
+        <span>
+          <small>Invoice</small>
+          <strong>{displayText(receipt.invoiceNumber, "Not provided")}</strong>
+        </span>
+        <span>
+          <small>Total</small>
+          <strong>
+            {displayMoney(
+              receipt.totalAmount ??
+                receipt.lines.reduce(
+                  (sum, line) => sum + finiteNumber(line.lineTotal),
+                  0,
+                ),
+              receipt.currency,
+            )}
+          </strong>
+        </span>
+      </div>
+      <div className="receipt-table-wrap">
+        <table className="receipt-table">
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Quantity</th>
+              <th>Package price</th>
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {receipt.lines.map((line) => (
+              <tr key={line.id}>
+                <td>
+                  <strong>{displayText(line.name, "Item")}</strong>
+                  <small className="receipt-line-description">
+                    {displayText(line.category, "Uncategorized")}
+                  </small>
+                </td>
+                <td>
+                  {line.packageCount !== null && line.unitsPerPackage !== null
+                    ? `${displayNumber(line.packageCount)} packages × ${displayNumber(line.unitsPerPackage)} ${displayText(line.unit, "units")}`
+                    : `${displayNumber(line.quantity)} ${displayText(line.unit, "units")}`}
+                </td>
+                <td>
+                  {line.packagePrice === null
+                    ? "—"
+                    : displayMoney(line.packagePrice, receipt.currency)}
+                </td>
+                <td>
+                  {line.lineTotal === null
+                    ? "—"
+                    : displayMoney(line.lineTotal, receipt.currency)}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="receipt-modal-footer">
+        <span>
+          {receipt.confidence === null
+            ? "Reviewed import"
+            : `${displayPercent(finiteNumber(receipt.confidence) * 100)} OCR confidence`}
+        </span>
+        {receipt.vatAmount !== null ? (
+          <span>VAT {displayMoney(receipt.vatAmount, receipt.currency)}</span>
+        ) : null}
+        <Button asChild size="sm" variant="outline">
+          <a href={`/api/receipts/${receipt.id}/export`}>Download Excel</a>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function ReceiptsShell({
   companyName,
   userName,
@@ -69,6 +157,8 @@ export function ReceiptsShell({
   userName: string;
   receipts: ReceiptHistoryItem[];
 }) {
+  const [selectedReceipt, setSelectedReceipt] =
+    useState<ReceiptHistoryItem | null>(null);
   const initials = userName
     .split(/\s+/)
     .map((part) => part[0])
@@ -214,7 +304,7 @@ export function ReceiptsShell({
                     </span>
                   </div>
                   <div className="receipt-cards">
-                    {dateReceipts.map((receipt, index) => {
+                    {dateReceipts.map((receipt) => {
                       const receiptTotal =
                         receipt.totalAmount ??
                         receipt.lines.reduce(
@@ -225,7 +315,10 @@ export function ReceiptsShell({
                         <details
                           className="receipt-card"
                           key={receipt.id}
-                          open={index === 0}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setSelectedReceipt(receipt);
+                          }}
                         >
                           <summary>
                             <span className="receipt-supplier-mark">
@@ -300,134 +393,6 @@ export function ReceiptsShell({
                               {displayMoney(receiptTotal, receipt.currency)}
                             </strong>
                           </summary>
-                          <div className="receipt-card-body">
-                            <div className="receipt-line-chips">
-                              {receipt.lines.slice(0, 4).map((line) => (
-                                <span key={line.id}>
-                                  {displayText(line.name, "Item")}
-                                  <small>
-                                    {line.packageCount !== null &&
-                                    line.unitsPerPackage !== null ? (
-                                      <>
-                                        {displayNumber(line.packageCount)} ×{" "}
-                                        {displayNumber(line.unitsPerPackage)}{" "}
-                                        {displayText(line.unit, "units")}
-                                      </>
-                                    ) : (
-                                      <>
-                                        {displayNumber(line.quantity)}{" "}
-                                        {displayText(line.unit, "units")}
-                                      </>
-                                    )}
-                                  </small>
-                                </span>
-                              ))}
-                              {receipt.lines.length > 4 ? (
-                                <em>+{receipt.lines.length - 4} more items</em>
-                              ) : null}
-                            </div>
-                            <div className="receipt-table-wrap">
-                              <table className="receipt-table">
-                                <thead>
-                                  <tr>
-                                    <th>Item</th>
-                                    <th>Category</th>
-                                    <th>SKU</th>
-                                    <th>Quantity</th>
-                                    <th>Package price</th>
-                                    <th>Total</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {receipt.lines.map((line) => (
-                                    <tr key={line.id}>
-                                      <td>
-                                        <strong>
-                                          {displayText(line.name, "Item")}
-                                        </strong>
-                                      </td>
-                                      <td>{displayText(line.category)}</td>
-                                      <td>{displayText(line.supplierSku)}</td>
-                                      <td>
-                                        {line.packageCount !== null &&
-                                        line.unitsPerPackage !== null ? (
-                                          <>
-                                            {displayNumber(line.packageCount)}{" "}
-                                            packages ×{" "}
-                                            {displayNumber(
-                                              line.unitsPerPackage,
-                                            )}{" "}
-                                            {displayText(line.unit, "units")}
-                                            <small className="receipt-line-description">
-                                              {displayNumber(line.quantity)}{" "}
-                                              total
-                                            </small>
-                                          </>
-                                        ) : (
-                                          <>
-                                            {displayNumber(line.quantity)}{" "}
-                                            {displayText(line.unit, "units")}
-                                          </>
-                                        )}
-                                      </td>
-                                      <td>
-                                        {line.packagePrice === null
-                                          ? "—"
-                                          : displayMoney(
-                                              line.packagePrice,
-                                              receipt.currency,
-                                            )}
-                                      </td>
-                                      <td>
-                                        {line.lineTotal === null
-                                          ? "—"
-                                          : displayMoney(
-                                              line.lineTotal,
-                                              receipt.currency,
-                                            )}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                            <div className="receipt-card-footer">
-                              <span>
-                                {receipt.confidence === null
-                                  ? "Reviewed import"
-                                  : `${displayPercent(
-                                      finiteNumber(receipt.confidence) * 100,
-                                    )} OCR confidence`}
-                              </span>
-                              {receipt.vatAmount !== null ? (
-                                <span>
-                                  VAT{" "}
-                                  {displayMoney(
-                                    receipt.vatAmount,
-                                    receipt.currency,
-                                  )}
-                                </span>
-                              ) : null}
-                              {receipt.totalAmount !== null ? (
-                                <span>
-                                  Total{" "}
-                                  {displayMoney(
-                                    receipt.totalAmount,
-                                    receipt.currency,
-                                  )}
-                                </span>
-                              ) : null}
-                              <span className="receipt-card-footer-total">
-                                <BadgeCheck />
-                                Synced to inventory memory
-                              </span>
-                              <Button asChild size="sm" variant="outline">
-                                <a href={`/api/receipts/${receipt.id}/export`}>
-                                  <Download /> Download Excel
-                                </a>
-                              </Button>
-                            </div>
-                          </div>
                         </details>
                       );
                     })}
@@ -452,6 +417,41 @@ export function ReceiptsShell({
           </section>
         )}
       </main>
+      {selectedReceipt ? (
+        <div
+          className="inventory-modal-backdrop"
+          onMouseDown={() => setSelectedReceipt(null)}
+        >
+          <section
+            aria-labelledby="receipt-detail-title"
+            aria-modal="true"
+            className="inventory-modal receipt-modal"
+            onMouseDown={(event) => event.stopPropagation()}
+            role="dialog"
+          >
+            <div className="inventory-modal-heading">
+              <div>
+                <p className="eyebrow">RECEIPT DETAILS</p>
+                <h2 id="receipt-detail-title">
+                  {displayText(selectedReceipt.supplier, "Supplier")}
+                </h2>
+                <span>
+                  {displayText(selectedReceipt.fileName, "Imported receipt")}
+                </span>
+              </div>
+              <Button
+                aria-label="Close receipt details"
+                onClick={() => setSelectedReceipt(null)}
+                size="icon"
+                variant="ghost"
+              >
+                <X />
+              </Button>
+            </div>
+            <ReceiptDetails receipt={selectedReceipt} />
+          </section>
+        </div>
+      ) : null}
       <MobileNavigation
         items={navigation.map(({ label, href, icon }) => ({
           label,

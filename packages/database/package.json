@@ -8,10 +8,10 @@
   },
   "scripts": {
     "build": "prisma generate && tsc -p tsconfig.json",
-    "generate": "prisma generate",
-    "migrate": "prisma migrate dev",
+    "generate": "sh -c 'set -a; if [ -f ../../.env.local ]; then . ../../.env.local; elif [ -f ../../.env ]; then . ../../.env; fi; set +a; prisma generate'",
+    "migrate": "sh -c 'set -a; if [ -f ../../.env.local ]; then . ../../.env.local; elif [ -f ../../.env ]; then . ../../.env; fi; set +a; prisma migrate dev'",
     "migrate:deploy": "prisma migrate deploy",
-    "seed": "tsx prisma/seed.ts",
+    "seed": "sh -c 'set -a; if [ -f ../../.env.local ]; then . ../../.env.local; elif [ -f ../../.env ]; then . ../../.env; fi; set +a; tsx prisma/seed.ts'",
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --passWithNoTests"

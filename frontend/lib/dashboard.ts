@@ -9,6 +9,7 @@ export interface DashboardData {
     label: string;
     value: string;
     detail: string;
+    href: string;
     emphasis?: string;
     trend?: "up" | "down";
     tone: "amber" | "red" | "green" | "blue";
@@ -18,6 +19,7 @@ export interface DashboardData {
     title: string;
     detail: string;
     tag: string;
+    href: string;
     tone: "amber" | "mint" | "blue";
     icon: "receipt" | "camera" | "package";
   }>;
@@ -315,6 +317,7 @@ export async function getDashboardData(
     {
       label: "Waiting for review",
       value: String(pendingReceipts.length),
+      href: "/receipts",
       emphasis:
         pendingReceipts.length > 0
           ? `${pendingReceipts.filter((receipt) => receipt.status === "PENDING").length} receipts`
@@ -329,6 +332,7 @@ export async function getDashboardData(
     {
       label: "Low stock items",
       value: String(lowStockItems.length),
+      href: "/inventory",
       emphasis: criticalItems.length
         ? `${criticalItems.length} critical`
         : undefined,
@@ -344,6 +348,7 @@ export async function getDashboardData(
     {
       label: "Receipts this week",
       value: shortCurrency(weeklySpend, currency),
+      href: "/receipts",
       emphasis: spendDelta
         ? `${spendTrend === "up" ? "↑" : "↓"} ${spendDelta}`
         : undefined,
@@ -358,6 +363,7 @@ export async function getDashboardData(
     {
       label: "Stock confidence",
       value: `${stockConfidence}%`,
+      href: "/inventory",
       emphasis: stockItems.length
         ? `${recentCounted} recently updated`
         : undefined,
@@ -377,6 +383,7 @@ export async function getDashboardData(
       title: `Review ${supplierName} receipt`,
       detail: `${receipt.lines.length} lines · ${Math.round(finiteNumber(receipt.confidence) * 100)}% AI confidence`,
       tag: "Approval",
+      href: "/receipts",
       icon: "receipt",
       tone: "amber",
     });
@@ -386,6 +393,7 @@ export async function getDashboardData(
       title: `Restock ${lowStockItems[0].name}`,
       detail: `${Math.max(lowStockItems[0].quantity, 0)} ${lowStockItems[0].unit} on hand · minimum ${lowStockItems[0].minimum}`,
       tag: lowStockItems[0].supplierName,
+      href: "/inventory",
       icon: "package",
       tone: "blue",
     });
@@ -499,6 +507,7 @@ export async function getDashboardData(
           ? "Supplier cutoff is due today"
           : `Next supplier window is in ${primarySupplier.orderOffset ?? 0} days`,
       tag: shortCurrency(primarySupplier.basketValue, primarySupplier.currency),
+      href: "/orders",
       icon: "package",
       tone: "blue",
     });
@@ -508,6 +517,7 @@ export async function getDashboardData(
       title: "Capture your first receipt",
       detail: "There is no supplier receipt history yet.",
       tag: "Get started",
+      href: "/receipts",
       icon: "camera",
       tone: "mint",
     });
