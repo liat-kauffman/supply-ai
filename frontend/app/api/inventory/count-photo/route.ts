@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { apiErrorResponse, requireApiCompany } from "@/lib/auth/api";
 import { generateGeminiContent } from "@/lib/gemini";
+import { MAX_API_UPLOAD_BYTES, MAX_API_UPLOAD_LABEL } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -43,9 +44,9 @@ export async function POST(request: Request) {
         { error: "Item name is required" },
         { status: 400 },
       );
-    if (image.size > 10 * 1024 * 1024)
+    if (image.size > MAX_API_UPLOAD_BYTES)
       return NextResponse.json(
-        { error: "The image must be smaller than 10 MB" },
+        { error: `The image must be smaller than ${MAX_API_UPLOAD_LABEL}` },
         { status: 413 },
       );
 

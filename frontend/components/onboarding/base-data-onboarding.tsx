@@ -19,6 +19,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { displayPercent, displayText } from "@/lib/display";
+import { isApiUploadTooLarge, MAX_API_UPLOAD_LABEL } from "@/lib/uploads";
 
 interface SetupItem {
   id: string;
@@ -126,6 +127,12 @@ export function BaseDataOnboarding({
 
   function chooseReceipt(file: File | null) {
     if (receiptPreview) URL.revokeObjectURL(receiptPreview);
+    if (file && isApiUploadTooLarge(file)) {
+      setReceipt(null);
+      setReceiptPreview(null);
+      setError(`Choose a receipt smaller than ${MAX_API_UPLOAD_LABEL}.`);
+      return;
+    }
     setReceipt(file);
     setReceiptPreview(
       file?.type.startsWith("image/") ? URL.createObjectURL(file) : null,
@@ -535,7 +542,7 @@ export function BaseDataOnboarding({
                   <>
                     <ImagePlus />
                     <strong>Drop a receipt here or choose a file</strong>
-                    <span>Photo or PDF · up to 10 MB</span>
+                    <span>Photo or PDF · up to {MAX_API_UPLOAD_LABEL}</span>
                   </>
                 )}
               </label>

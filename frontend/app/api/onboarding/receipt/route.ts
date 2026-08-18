@@ -4,6 +4,7 @@ import { z } from "zod";
 import { ApiAccessError, requireApiCompany } from "@/lib/auth/api";
 import { displayText } from "@/lib/display";
 import { generateGeminiContent } from "@/lib/gemini";
+import { MAX_API_UPLOAD_BYTES, MAX_API_UPLOAD_LABEL } from "@/lib/uploads";
 
 export const runtime = "nodejs";
 
@@ -81,9 +82,9 @@ export async function POST(request: Request) {
         { error: "Upload an image or PDF receipt" },
         { status: 400 },
       );
-    if (receipt.size > 10 * 1024 * 1024)
+    if (receipt.size > MAX_API_UPLOAD_BYTES)
       return NextResponse.json(
-        { error: "The receipt must be smaller than 10 MB" },
+        { error: `The receipt must be smaller than ${MAX_API_UPLOAD_LABEL}` },
         { status: 413 },
       );
 

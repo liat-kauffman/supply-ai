@@ -9,8 +9,8 @@
   "scripts": {
     "build": "prisma generate && tsc -p tsconfig.json",
     "generate": "sh -c 'set -a; if [ -f ../../.env.local ]; then . ../../.env.local; elif [ -f ../../.env ]; then . ../../.env; fi; set +a; prisma generate'",
-    "migrate": "sh -c 'set -a; if [ -f ../../.env.local ]; then . ../../.env.local; elif [ -f ../../.env ]; then . ../../.env; fi; set +a; prisma migrate dev'",
-    "migrate:deploy": "prisma migrate deploy",
+    "migrate": "sh -c 'set -a; if [ -f ../../.env.local ]; then . ../../.env.local; elif [ -f ../../.env ]; then . ../../.env; fi; set +a; DIRECT_URL=${DIRECT_URL:-$DATABASE_URL}; export DIRECT_URL; prisma migrate dev'",
+    "migrate:deploy": "sh -c 'DIRECT_URL=${DIRECT_URL:-$DATABASE_URL}; export DIRECT_URL; prisma migrate deploy'",
     "seed": "sh -c 'set -a; if [ -f ../../.env.local ]; then . ../../.env.local; elif [ -f ../../.env ]; then . ../../.env; fi; set +a; tsx prisma/seed.ts'",
     "lint": "tsc -p tsconfig.json --noEmit",
     "typecheck": "tsc -p tsconfig.json --noEmit",

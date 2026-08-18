@@ -37,6 +37,7 @@ import {
   displayText,
   finiteNumberOrNull,
 } from "@/lib/display";
+import { isApiUploadTooLarge, MAX_API_UPLOAD_LABEL } from "@/lib/uploads";
 import { type InventoryItem, type InventoryStatus } from "./inventory-data";
 import { AreaPhotoScanner } from "./area-photo-scanner";
 
@@ -289,6 +290,13 @@ export function InventoryShell({
 
   function choosePhoto(file: File | null) {
     if (photoPreview) URL.revokeObjectURL(photoPreview);
+    if (file && isApiUploadTooLarge(file)) {
+      setPhoto(null);
+      setPhotoPreview(null);
+      setPhotoError(`Choose an image smaller than ${MAX_API_UPLOAD_LABEL}.`);
+      setCountProposal(null);
+      return;
+    }
     setPhoto(file);
     setPhotoPreview(file ? URL.createObjectURL(file) : null);
     setPhotoError(null);
@@ -1007,7 +1015,9 @@ export function InventoryShell({
                     <>
                       <ImagePlus />
                       <strong>Take or upload a photo</strong>
-                      <span>JPG, PNG, WebP or HEIC · up to 10 MB</span>
+                      <span>
+                        JPG, PNG, WebP or HEIC · up to {MAX_API_UPLOAD_LABEL}
+                      </span>
                     </>
                   )}
                 </label>

@@ -2,6 +2,7 @@
   "$schema": "https://turbo.build/schema.json",
   "globalEnv": [
     "DATABASE_URL",
+    "DIRECT_URL",
     "BETTER_AUTH_SECRET",
     "BETTER_AUTH_URL",
     "SUPER_ADMIN_USER_IDS",

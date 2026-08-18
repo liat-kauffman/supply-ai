@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { displayPercent } from "@/lib/display";
+import { isApiUploadTooLarge, MAX_API_UPLOAD_LABEL } from "@/lib/uploads";
 import type { InventoryItem } from "./inventory-data";
 
 type Observation = {
@@ -56,6 +57,13 @@ export function AreaPhotoScanner({
 
   function choosePhoto(file: File | null) {
     if (preview) URL.revokeObjectURL(preview);
+    if (file && isApiUploadTooLarge(file)) {
+      setPhoto(null);
+      setPreview(null);
+      setObservations([]);
+      setError(`Choose an image smaller than ${MAX_API_UPLOAD_LABEL}.`);
+      return;
+    }
     setPhoto(file);
     setPreview(file ? URL.createObjectURL(file) : null);
     setObservations([]);
@@ -219,7 +227,8 @@ export function AreaPhotoScanner({
                 <ImagePlus />
                 <strong>Take or upload an area photo</strong>
                 <span>
-                  Include the full shelf or storage area · up to 10 MB
+                  Include the full shelf or storage area · up to{" "}
+                  {MAX_API_UPLOAD_LABEL}
                 </span>
               </>
             )}
