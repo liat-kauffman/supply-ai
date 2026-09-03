@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@supply/domain": "workspace:*",
-    "zod": "^4.1.5"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@types/node": "^24.3.0",
